@@ -1,0 +1,97 @@
+version: "3.9"
+
+# JR MineralForge – Docker Compose
+# Team JR – Advancing Mineral Discovery with Robust AI & Open Australian Geodata
+
+services:
+
+  # ── Ollama LLM Server (local LLM, no API keys required) ─────────────
+  ollama:
+    image: ollama/ollama:latest
+    container_name: jr_ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ── JR MineralForge Main App ─────────────────────────────────────────
+  jr_mineralforge:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jr_mineralforge
+    ports:
+      - "7860:7860"      # Gradio UI
+    volumes:
+      - ./data:/app/data          # Data persistence (SARIG, GA downloads)
+      - ./reports:/app/reports    # Generated reports and maps
+      - ./models:/app/models      # Trained ML models
+      - ./logs:/app/logs          # Log files
+      - ./mlflow_runs:/app/mlflow_runs  # MLflow experiment tracking
+    environment:
+      - LLM_PROVIDER=ollama
+      - LLM_MODEL=llama3.1:8b
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - LOG_LEVEL=INFO
+      - PYTHONPATH=/app
+      # Uncomment and set for OpenAI fallback:
+      # - OPENAI_API_KEY=${OPENAI_API_KEY}
+      # - LLM_PROVIDER=openai
+      # - LLM_MODEL=gpt-4o-mini
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: unless-stopped
+    command: python app.py
+
+  # ── MLflow Tracking Server ─────────────────────────────────────────
+  mlflow:
+    image: python:3.11-slim
+    container_name: jr_mlflow
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./mlflow_runs:/mlflow
+    command: >
+      bash -c "pip install mlflow --quiet &&
+               mlflow server
+               --backend-store-uri /mlflow
+               --default-artifact-root /mlflow/artifacts
+               --host 0.0.0.0 --port 5000"
+    restart: unless-stopped
+
+  # ── CLI (optional, for running workflows) ──────────────────────────
+  jr_cli:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jr_cli
+    volumes:
+      - ./data:/app/data
+      - ./reports:/app/reports
+      - ./models:/app/models
+      - ./logs:/app/logs
+    environment:
+      - LLM_PROVIDER=ollama
+      - LLM_MODEL=llama3.1:8b
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - PYTHONPATH=/app
+    depends_on:
+      - ollama
+    profiles:
+      - cli
+    command: python main.py workflow
+
+volumes:
+  ollama_models:
+    driver: local
+
+networks:
+  default:
+    name: jr_mineralforge_network

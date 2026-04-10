@@ -1,0 +1,2 @@
+"""JR MineralForge config package."""
+from .settings import *  # noqa: F401, F403
