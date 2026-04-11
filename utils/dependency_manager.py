@@ -15,9 +15,10 @@ log = logging.getLogger(__name__)
 
 # Packages that require native C++ libs — pip alone often can't fix these.
 # We attempt install but warn clearly if they fail.
+# NOTE: pyogrio is preferred over fiona for Python 3.14+ as it bundles GDAL.
 NATIVE_PACKAGES = {
     "geopandas": "geopandas",
-    "fiona": "fiona",
+    "pyogrio": "pyogrio",
     "rasterio": "rasterio",
     "pyproj": "pyproj",
     "shapely": "shapely",
