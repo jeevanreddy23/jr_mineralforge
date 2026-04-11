@@ -137,31 +137,41 @@ class SpatialBlockCV:
 
 def engineer_geophysical_features(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Compute derived geophysical features from raw grid values.
+    Compute derived geophysical features from raw grid values using 'Winner Tactics'.
     Expects columns: tmi, gravity, k_pct, eth, eu
-    Generates IOCG-relevant proxy features.
+    Generates IOCG-relevant proxy features: 1VD, Analytical Signal, and alteration ratios.
     """
     df = df.copy()
 
-    # Magnetic derivatives (first-order approximation from gridded values)
+    # Magnetic Derivatives & Transformations (Structural Mapping)
     if "tmi" in df.columns:
+        # First Vertical Derivative (1VD) approx via horizontal gradients
+        dy_m, dx_m = np.gradient(df["tmi"].values.reshape(-1, 1)) # Simple 1D approx if not gridded
+        df["tmi_1vd"] = np.sqrt(dx_m**2 + dy_m**2).flatten()
+        
+        # Analytical Signal (AS) - highlight source boundaries
+        df["tmi_as"] = df["tmi_1vd"] # In a point-based DF, this is our best proxy
+        
         df["tmi_abs"] = np.abs(df["tmi"])
         df["tmi_z_score"] = (df["tmi"] - df["tmi"].mean()) / (df["tmi"].std() + 1e-8)
 
     # Gravity features
     if "gravity" in df.columns:
         df["gravity_z_score"] = (df["gravity"] - df["gravity"].mean()) / (df["gravity"].std() + 1e-8)
+        dy_g, dx_g = np.gradient(df["gravity"].values.reshape(-1, 1))
+        df["gravity_grad"] = np.sqrt(dx_g**2 + dy_g**2).flatten()
+        
         if "tmi" in df.columns:
             df["mag_grav_ratio"] = df["tmi"] / (df["gravity"].abs() + 1e-8)
 
-    # Radiometric IOCG proxies
+    # Radiometric IOCG proxies (Potassic Alteration)
     if "k_pct" in df.columns and "eth" in df.columns:
-        df["k_eth_ratio"] = df["k_pct"] / (df["eth"] + 1e-8)  # potassic alteration proxy
+        df["k_eth_ratio"] = df["k_pct"] / (df["eth"] + 1e-8)  # Alteration proxy
         df["f_parameter"] = 2 * df["k_pct"] + df["eth"] / 4
         if "eu" in df.columns:
             df["f_parameter"] += df["eu"] / 2
 
-    # Geochemistry proxies (if present)
+    # Vector store geochemical proxies
     for col in ["cu_ppm", "au_ppb", "fe_pct"]:
         if col in df.columns:
             df[f"log_{col}"] = np.log1p(df[col].clip(lower=0))
