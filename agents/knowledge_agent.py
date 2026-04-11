@@ -128,6 +128,32 @@ Specific improvements by Team JR:
 
 
 @tool
+def list_major_mines() -> str:
+    """
+    List known Tier-1 and Tier-2 mineral deposits in South Australia (SARIG 2026 data).
+    Useful for spatial cross-referencing of new AI-generated targets against existing 
+    infrastructure like Olympic Dam, Carrapateena, and Prominent Hill.
+    """
+    try:
+        from pathlib import Path
+        path = Path("data/known_deposits.json")
+        if not path.exists():
+             return "Known deposits database not found."
+        with open(path, "r") as f:
+            data = json.load(f)
+        
+        lines = [f"[{BRAND_NAME}] SARIG Major Mines & Resource Projects (March 2026 update)\n", "="*60]
+        for m in data.get("major_mines", []):
+            lines.append(f"🟢 {m['name']} ({m['type']})")
+            lines.append(f"   Province: {m['province']} | Tier: {m['tier']}")
+            lines.append(f"   Commodities: {', '.join(m['commodities'])}")
+        lines.append(f"\nContext: {data.get('context')}")
+        return "\n".join(lines)
+    except Exception as e:
+        return f"Error retrieving mine data: {e}"
+
+
+@tool
 def list_all_winners() -> str:
     """List all OZ Minerals Explorer Challenge winners in the knowledge base with their key strategies."""
     lines = [
