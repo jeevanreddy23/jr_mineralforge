@@ -55,8 +55,15 @@ def chat_with_jr(message: str, history: list) -> tuple[str, list]:
     try:
         response = orc.run(message)
     except Exception as e:
-        response = f"Error: {e}"
-    history.append((message, response))
+        response = f"❌ Error: {e}"
+        
+    # Convert any raw LangChain objects to strings
+    if hasattr(response, "content"):
+        response = response.content
+        
+    history.append({"role": "user", "content": str(message)})
+    history.append({"role": "assistant", "content": str(response)})
+    
     return "", history
 
 
