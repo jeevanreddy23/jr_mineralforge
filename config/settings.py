@@ -103,7 +103,7 @@ AUSTRALIAN_PROVINCES = {
 }
 
 # Default target for initialization
-MOUNT_WOODS_BBOX = AUSTRALIAN_PROVINCES["tasmania_mount_read"]
+MOUNT_WOODS_BBOX = AUSTRALIAN_PROVINCES["mount_woods"]
 
 # ─────────────────────────────────────────────────────────────────
 # Open Data Source URLs
