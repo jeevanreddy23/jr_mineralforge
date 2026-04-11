@@ -29,21 +29,21 @@ def check_and_install_dependencies():
 
     if missing_packages:
         log.warning(f"Missing dependencies detected: {', '.join(missing_packages)}")
-        print(f"🔄 Installing missing dependencies: {', '.join(missing_packages)}...")
+        print(f"[PROCESS] Installing missing dependencies: {', '.join(missing_packages)}...")
         
         try:
             # First attempt standard pip install
             subprocess.check_call([sys.executable, "-m", "pip", "install"] + missing_packages)
-            print("✅ Dependencies installed successfully.")
+            print("[OK] Dependencies installed successfully.")
         except subprocess.CalledProcessError:
             log.warning("Standard pip install failed. Attempting fallback for geospatial binaries...")
-            print("⏳ Standard install failed. Attempting no-binary fallback...")
+            print("[WAIT] Standard install failed. Attempting no-binary fallback...")
             try:
                 subprocess.check_call([sys.executable, "-m", "pip", "install", "--no-binary", ":all:"] + missing_packages)
-                print("✅ Fallback installation successful.")
+                print("[OK] Fallback installation successful.")
             except subprocess.CalledProcessError as e:
                 log.error(f"Critical failure installing geospatial dependencies: {e}")
-                print("❌ CRITICAL ERROR: Could not install dependencies. Please run 'conda install geopandas rasterio' manually.")
+                print("[ERROR] CRITICAL ERROR: Could not install dependencies. Please run 'conda install geopandas rasterio' manually.")
                 raise e
 
 # Provide an isolated import wrapper
@@ -55,12 +55,12 @@ def safe_import(module_name: str, fallback_package: str = None):
     try:
         return importlib.import_module(module_name)
     except ImportError:
-        print(f"📦 Auto-installing {pkg}...")
+        print(f"[INFO] Auto-installing {pkg}...")
         try:
             subprocess.check_call([sys.executable, "-m", "pip", "install", pkg])
             return importlib.import_module(module_name)
         except Exception as e:
-            print(f"❌ Failed to install {pkg}: {e}")
+            print(f"[ERROR] Failed to install {pkg}: {e}")
             raise
 
 if __name__ == "__main__":
