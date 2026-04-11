@@ -198,15 +198,32 @@ class ProspectivityMappingAgent:
 
         # Step 4: Predictions
         if ml_engine is None:
-            log.warning("No ML engine provided — using mock scores for demonstration")
-            n = len(feat_df)
-            grid_df["prospectivity"] = np.random.beta(0.5, 2, n)
-            grid_df["uncertainty"] = np.random.beta(2, 5, n)
-        else:
-            log.info("Running ML predictions …")
-            proba, uncertainty = ml_engine.predict_with_uncertainty(feat_df)
-            grid_df["prospectivity"] = proba
-            grid_df["uncertainty"] = uncertainty
+            try:
+                from agents.ml_engine_agent import ProspectivityMLEngine
+                ml_engine = ProspectivityMLEngine.load()
+            except Exception as e:
+                log.error(f"Failed to load ML models: {e}. No predictions can be made.")
+                raise RuntimeError("ML model engine is not initialized. Cannot perform 'Drill or Drop' analysis. Run training first.")
+
+        log.info("Running ML predictions …")
+        proba, uncertainty = ml_engine.predict_with_uncertainty(feat_df)
+        grid_df["prospectivity"] = proba
+        grid_df["uncertainty"] = uncertainty
+        
+        # Calculate SHAP explainability per pixel/target
+        try:
+            shap_vals = ml_engine.compute_shap_values(feat_df)
+            if shap_vals is not None:
+                if isinstance(shap_vals, list):
+                    shap_vals = shap_vals[1]
+                feature_names = ml_engine.feature_cols
+                top_indices = np.argmax(np.abs(shap_vals), axis=1)
+                grid_df["primary_driver"] = [feature_names[i] for i in top_indices]
+            else:
+                grid_df["primary_driver"] = "Unknown"
+        except Exception as e:
+            log.warning(f"SHAP explanation failed: {e}")
+            grid_df["primary_driver"] = "Unknown"
 
         # Step 5: Rasterize
         prosp_raster = self._grid_to_raster(grid_df, "prospectivity", "prospectivity_map.tif")
@@ -287,10 +304,14 @@ class ProspectivityMappingAgent:
         high["confidence_score"] = (high["prospectivity"] * 100).round(1)
         high["confidence_category"] = pd.cut(
             high["prospectivity"],
-            bins=[0, 0.5, 0.7, 0.85, 1.0],
+            bins=[-0.1, 0.5, 0.7, 0.85, 1.1],
             labels=["Low", "Medium", "High", "Very High"],
         )
         high["target_label"] = [f"JR-T{i+1:03d}" for i in range(len(high))]
+        
+        # Ensure we have SHAP explanation if missing
+        if "primary_driver" not in high.columns:
+            high["primary_driver"] = "Unknown Target Source"
 
         geometry = [Point(row["lon"], row["lat"]) for _, row in high.iterrows()]
         gdf = gpd.GeoDataFrame(high, geometry=geometry, crs=WGS84_CRS)
@@ -333,6 +354,7 @@ class ProspectivityMappingAgent:
             Rank: {row['rank']}<br>
             Prospectivity Score: <b>{row['confidence_score']:.1f}%</b><br>
             Category: <b>{cat}</b><br>
+            Primary ML Driver (SHAP): <b>{row.get('primary_driver', 'Unknown').upper()}</b><br>
             Uncertainty: {row.get('uncertainty', 0):.3f}<br>
             Lat/Lon: {row['lat']:.4f}, {row['lon']:.4f}<br>
             <hr><i>{BRAND_FOOTER}</i>

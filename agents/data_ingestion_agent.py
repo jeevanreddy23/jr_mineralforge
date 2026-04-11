@@ -133,8 +133,10 @@ class SARIGIngestionAgent:
         },
     }
 
-    # WFS endpoint for bbox-filtered queries
-    WFS_URL = "https://map.sarig.sa.gov.au/arcgis/services/SARIGServicesGroup/MapServer/WFSServer"
+    # WFS endpoints for bbox-filtered queries
+    WFS_GEOLOGY_URL = "https://services.sarig.sa.gov.au/vector/geology/wfs"
+    WFS_GEOPHYSICS_URL = "https://services.sarig.sa.gov.au/vector/geophysical_data/wfs"
+    WFS_DRILLHOLES_URL = "https://services.sarig.sa.gov.au/vector/drillholes/wfs"
 
     def __init__(self, bbox: BoundingBox = MOUNT_WOODS_BBOX):
         self.bbox = bbox
@@ -170,6 +172,7 @@ class SARIGIngestionAgent:
 
     def fetch_wfs_layer(
         self,
+        base_url: str,
         type_name: str,
         output_format: str = "application/json",
         max_features: int = 5000,
@@ -178,12 +181,12 @@ class SARIGIngestionAgent:
         bbox_str = f"{self.bbox.min_lon},{self.bbox.min_lat},{self.bbox.max_lon},{self.bbox.max_lat}"
         params = {
             "service": "WFS",
-            "version": "2.0.0",
+            "version": "1.1.0",
             "request": "GetFeature",
             "typeName": type_name,
             "outputFormat": output_format,
             "bbox": bbox_str,
-            "count": max_features,
+            "maxFeatures": max_features,
         }
         cache_name = f"wfs_{type_name.replace(':', '_').replace('/', '_')}.geojson"
         out_path = self.processed_dir / cache_name
@@ -191,7 +194,7 @@ class SARIGIngestionAgent:
             log.info(f"WFS cache hit: {out_path}")
             return out_path
         try:
-            _download_with_retry(self.WFS_URL, out_path, session=self.session, params=params)
+            _download_with_retry(base_url, out_path, session=self.session, params=params)
             return out_path
         except Exception as e:
             log.error(f"WFS fetch failed for {type_name}: {e}")
@@ -212,22 +215,37 @@ class SARIGIngestionAgent:
             return None
 
     def ingest_all(self) -> Dict[str, Any]:
-        """Run full SARIG ingestion pipeline. Returns summary dict."""
-        log.info("=== SARIG Ingestion Pipeline START ===")
+        """Run full SARIG ingestion pipeline dynamically bounding via WFS."""
+        log.info("=== SARIG Dynamic API Pipeline START ===")
         results: Dict[str, Any] = {}
 
-        for key in self.SARIG_OPEN_DATA_PACKAGES:
-            try:
-                files = self.download_package(key)
-                results[key] = {"status": "ok", "files": [str(f) for f in files]}
-            except Exception as e:
-                log.error(f"Package {key} failed: {e}")
-                results[key] = {"status": "error", "error": str(e)}
+        # 1. Fetch Structural Geology (Faults/Shears) dynamically via WFS bounding
+        try:
+            wfs_geol = self.fetch_wfs_layer(self.WFS_GEOLOGY_URL, "sa_geology_1m")
+            results["dynamic_wfs_geology"] = {"status": "ok", "file": str(wfs_geol)}
+        except Exception as e:
+            log.error(f"Geology WFS failed: {e}")
+            results["dynamic_wfs_geology"] = {"status": "error", "error": str(e)}
 
+        # 2. Fetch Target Drillholes via WFS
+        try:
+            wfs_drills = self.fetch_wfs_layer(self.WFS_DRILLHOLES_URL, "mineral_drillholes")
+            results["dynamic_wfs_drillholes"] = {"status": "ok", "file": str(wfs_drills)}
+        except Exception as e:
+            results["dynamic_wfs_drillholes"] = {"status": "error", "error": str(e)}
+            
+        # 3. Target Occurrences via WFS
+        try:
+            wfs_occ = self.fetch_wfs_layer(self.WFS_GEOLOGY_URL, "mineral_occurrences")
+            results["dynamic_wfs_minocc"] = {"status": "ok", "file": str(wfs_occ)}
+        except Exception as e:
+            results["dynamic_wfs_minocc"] = {"status": "error", "error": str(e)}
+
+        # 4. Geochemistry Fallback CSV
         geochem = self.fetch_sarig_geochemistry()
         results["geochemistry"] = {"status": "ok" if geochem else "error", "file": str(geochem)}
 
-        log.info("=== SARIG Ingestion Pipeline COMPLETE ===")
+        log.info("=== SARIG API Ingestion Pipeline COMPLETE ===")
         return results
 
 

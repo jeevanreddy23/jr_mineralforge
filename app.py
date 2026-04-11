@@ -54,12 +54,12 @@ def chat_with_jr(message: str, history: list) -> tuple[str, list]:
     orc = get_orchestrator()
     try:
         response = orc.run(message)
+        if hasattr(response, "content") and response.content:
+            response = response.content
+        elif not isinstance(response, str):
+            response = str(response)
     except Exception as e:
-        response = f"❌ Error: {e}"
-        
-    # Convert any raw LangChain objects to strings
-    if hasattr(response, "content"):
-        response = response.content
+        response = f"❌ Error processing request: {str(e)}\n\nTry a simpler question or switch to a tool-capable model like llama3.1:8b."
         
     history.append({"role": "user", "content": str(message)})
     history.append({"role": "assistant", "content": str(response)})
@@ -86,10 +86,9 @@ def run_sarig_ingest(province_id: str = "mount_woods") -> str:
         bbox = AUSTRALIAN_PROVINCES.get(province_id, AUSTRALIAN_PROVINCES["mount_woods"])
         agent = SARIGIngestionAgent(bbox=bbox)
         
-        # Download key datasets using the explicit method structure provided
-        agent.download_package("surface_geology")
-        results = [str(p) for p in agent.processed_dir.glob("*")]
-        return f"✅ SARIG (South Australia) Ingestion Complete for {bbox.name}\n\nProcessed files:\n" + "\n".join(results)
+        # Download all SARIG datasets (geology, drillholes, geochem)
+        results = agent.ingest_all()
+        return f"✅ SARIG (South Australia) Ingestion Complete for {bbox.name}\n\n{json.dumps(results, indent=2)}"
     except Exception as e:
         return f"❌ Error: {e}"
 
@@ -118,22 +117,90 @@ def run_state_ingest(state_code, layer, province_id) -> str:
         return f"❌ Error: {e}"
 
 
-def run_prospectivity(province_id: str = "mount_woods") -> tuple[str, str]:
+def run_prospectivity(province_id: str = "mount_woods", file_obj=None) -> tuple[str, str, object, str]:
     try:
         from agents.prospectivity_agent import ProspectivityMappingAgent
-        from config.settings import AUSTRALIAN_PROVINCES
+        from config.settings import AUSTRALIAN_PROVINCES, BoundingBox
+        import geopandas as gpd
+        import pandas as pd
+        from pathlib import Path
+        import json
+
         bbox = AUSTRALIAN_PROVINCES.get(province_id, AUSTRALIAN_PROVINCES["mount_woods"])
+        
+        # 1. Parse Tenement Boundary
+        if file_obj is not None:
+            try:
+                file_path = file_obj.name if hasattr(file_obj, 'name') else str(file_obj)
+                gdf = gpd.read_file(file_path)
+                if gdf.crs and gdf.crs.to_epsg() != 4326:
+                    gdf = gdf.to_crs(epsg=4326)
+                
+                minx, miny, maxx, maxy = gdf.total_bounds
+                bbox = BoundingBox(
+                    name=f"Tenement_{Path(file_path).stem}",
+                    min_lon=minx, max_lon=maxx,
+                    min_lat=miny, max_lat=maxy,
+                    description="User Uploaded Tenement Boundary"
+                )
+            except Exception as e:
+                pass # fallback to province if shapefile parse fails
+                
+        # 2. Force Dynamic Ingestion to the new bounding box before compute
+        from agents.data_ingestion_agent import SARIGIngestionAgent
+        SARIGIngestionAgent(bbox=bbox).ingest_all()
+
+        # 3. Target Generation
         agent = ProspectivityMappingAgent(bbox=bbox)
         results = agent.run_full_pipeline()
+        
+        # 4. Map Extraction
         map_path = results.get("interactive_map", "")
         if map_path and Path(map_path).exists():
             with open(map_path, "r", encoding="utf-8") as f:
                 map_html = f.read()
         else:
-            map_html = "<p>Map not generated yet.</p>"
-        return f"✅ Pipeline Complete for {bbox.name}\n{json.dumps(results, indent=2)}", map_html
+            map_html = "<p>Map not generated.</p>"
+            
+        # 5. Targets Dataframe Extraction & KPIs
+        csv_path = results.get("targets_csv", "")
+        target_count = 0
+        max_conf = 0.0
+        
+        if csv_path and Path(csv_path).exists():
+            df = pd.read_csv(csv_path)
+            target_count = len(df)
+            max_conf = max(df.get("confidence_score", [0])) if "confidence_score" in df.columns else 0.0
+            
+            df_out = pd.DataFrame()
+            df_out["Target ID"] = df.get("target_label", [f"T-{i}" for i in range(len(df))])
+            df_out["Confidence"] = df.get("confidence_category", "Unknown").astype(str) + " (" + df.get("confidence_score", 0).astype(str) + "%)"
+            df_out["Primary Driver (SHAP)"] = df.get("primary_driver", "Unknown").astype(str).str.upper()
+            df_out["Easting"] = df.get("lon", 0).round(2)
+            df_out["Northing"] = df.get("lat", 0).round(2)
+            df_out = df_out.head(10)
+        else:
+            df_out = pd.DataFrame(columns=["Target ID", "Confidence", "Primary Driver (SHAP)", "Easting", "Northing"])
+
+        kpi_metrics = f"""
+        <div class="kpi-container">
+            <div class="kpi-box"><div class="kpi-title">Data Processed</div><div class="kpi-value" id="kpi-data">Bounded</div></div>
+            <div class="kpi-box"><div class="kpi-title">Features Built</div><div class="kpi-value" id="kpi-features">ML Generated</div></div>
+            <div class="kpi-box"><div class="kpi-title">Max Confidence</div><div class="kpi-value" id="kpi-conf">{max_conf:.1f}%</div></div>
+            <div class="kpi-box"><div class="kpi-title">Targets Generated</div><div class="kpi-value" id="kpi-targets">{target_count}</div></div>
+        </div>
+        """
+
+        return f"✅ Pipeline Complete for {bbox.name}\n{json.dumps(results, indent=2)}", map_html, df_out, kpi_metrics
     except Exception as e:
-        return f"❌ Error: {e}", "<p>Error generating map.</p>"
+        import pandas as pd
+        fallback_kpi = """
+        <div class="kpi-container">
+            <div class="kpi-box"><div class="kpi-title">Status</div><div class="kpi-value" style="color: #ff4a4a;">FAILED</div></div>
+            <div class="kpi-box"><div class="kpi-title">Reason</div><div class="kpi-value" style="color: #ff4a4a; font-size: 1em;">Pipeline Error</div></div>
+        </div>
+        """
+        return f"❌ Error: {e}", "<p>Error generating pipeline output.</p>", pd.DataFrame(), fallback_kpi
 
 
 def run_national_sweep() -> str:
@@ -261,6 +328,39 @@ body, .gradio-container {
     border-radius: 8px !important;
 }
 
+.kpi-container {
+    display: flex;
+    justify-content: space-between;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.kpi-box {
+    background: #161b22;
+    border: 1px solid #2d3748;
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    flex: 1;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+
+.kpi-title {
+    color: #8b949e;
+    font-size: 0.9em;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+}
+
+.kpi-value {
+    color: var(--brand-gold);
+    font-size: 2.2em;
+    font-weight: 800;
+    margin: 0;
+}
+
 .gr-textbox, .gr-chatbot {
     background: #161b22 !important;
     border: 1px solid #2d3748 !important;
@@ -299,156 +399,80 @@ def build_ui() -> gr.Blocks:
         # Header
         gr.HTML(f"""
         <div class="brand-header">
-            <h1>🏔️ {BRAND_NAME}</h1>
-            <p>{BRAND_HEADER}</p>
+            <h1>🏔️ {BRAND_NAME} | Executive Dashboard</h1>
+            <p>Commercial "Drill or Drop" Pipeline (Mount Woods Base)</p>
             <p style="color: #666; font-size: 0.8em; margin-top: 4px;">
-                IOCG · Copper-Gold · Mount Woods / Prominent Hill · Open Australian Geodata
+                IOCG · Copper-Gold · Gawler Craton · ML Targeted
             </p>
         </div>
         """)
 
         with gr.Tabs() as tabs:
 
-            # ── Tab 1: Chat ────────────────────────────────────
-            with gr.Tab("💬 Geological Chat"):
-                gr.Markdown("""
-**Ask JR MineralForge anything about:**
-- IOCG mineral systems and Gawler Craton geology
-- OZ Minerals Explorer Challenge winners and how Team JR improves upon them
-- SARIG/GA open data and what features to target
-- Specific drill targets: *"Show top copper-gold targets in Mount Woods"*
-                """)
-                chatbot = gr.Chatbot(label="JR MineralForge Assistant", height=450)
-                with gr.Row():
-                    chat_input = gr.Textbox(
-                        placeholder='e.g. "How did Team Guru win and how does JR MineralForge improve upon their strategy?"',
-                        label="Your question",
-                        lines=2,
-                        scale=5,
-                    )
-                    send_btn = gr.Button("Send →", variant="primary", scale=1)
-
-                gr.Examples(
-                    examples=[
-                        "Show top copper-gold targets in Mount Woods from SARIG data",
-                        "How did Team Guru win and how does JR MineralForge improve it with GA geophysics?",
-                        "What geophysical features indicate IOCG mineralisation in the Gawler Craton?",
-                        "Compare DeepSightX strategy to Team JR approach for prospectivity mapping",
-                        "What radiometric proxies should I use for potassic alteration targeting?",
-                        "List all OZ Minerals Explorer Challenge winners",
-                    ],
-                    inputs=chat_input,
-                )
-                send_btn.click(chat_with_jr, [chat_input, chatbot], [chat_input, chatbot])
-                chat_input.submit(chat_with_jr, [chat_input, chatbot], [chat_input, chatbot])
-
-            # ── Tab 2: Data Ingestion ─────────────────────────
-            with gr.Tab("📥 Data Ingestion"):
-                gr.Markdown("""
-### Automated Open Data Download
-Downloads from **SARIG**, **Geoscience Australia**, and **State Geological Surveys** across Australia.
+            # ── Tab 1: Executive Dashboard ────────────────────────────────────
+            with gr.Tab("🎯 Drill or Drop Dashboard"):
+                kpi_html_display = gr.HTML("""
+                <div class="kpi-container">
+                    <div class="kpi-box"><div class="kpi-title">Data Processed</div><div class="kpi-value" id="kpi-data">-- GB</div></div>
+                    <div class="kpi-box"><div class="kpi-title">Features Built</div><div class="kpi-value" id="kpi-features">--</div></div>
+                    <div class="kpi-box"><div class="kpi-title">Max Confidence</div><div class="kpi-value" id="kpi-conf">--%</div></div>
+                    <div class="kpi-box"><div class="kpi-title">Targets Generated</div><div class="kpi-value" id="kpi-targets">--</div></div>
+                </div>
                 """)
                 
                 with gr.Row():
-                    province_select = gr.Dropdown(
-                        choices=["mount_woods", "yilgarn_craton", "mt_isa_inlier", "lachlan_fold_belt", "pilbara_craton", "pine_creek"],
-                        value="mount_woods",
-                        label="Discovery Province / Region"
-                    )
+                    with gr.Column(scale=1):
+                        tenement_upload = gr.File(label="Upload Tenement Boundary (SHP/KML/GeoJSON)", file_types=[".shp", ".kml", ".geojson", ".zip"])
+                        province_select = gr.Dropdown(
+                            choices=["mount_woods", "yilgarn_craton", "mt_isa_inlier", "lachlan_fold_belt"],
+                            value="mount_woods",
+                            label="Target Province (Fallback Region)"
+                        )
+                        run_btn = gr.Button("▶ Initialize ML Pipeline", variant="primary")
+                        pipeline_status = gr.Textbox(label="Pipeline Execution Status", lines=12)
 
-                with gr.Row():
-                    check_btn = gr.Button("🔍 Check Available Data", variant="secondary")
-                    sarig_btn = gr.Button("🦘 Ingest SARIG (South Australia)", variant="primary")
-                    tasmania_btn = gr.Button("🇦🇺 Ingest MRT (Tasmania)", variant="primary")
-                    ga_btn = gr.Button("🌏 Ingest GA Data (National)", variant="primary")
+                    with gr.Column(scale=2):
+                        map_display = gr.HTML(label="High-Resolution Interactive Targeting Map")
+                
+                gr.Markdown("### Ranked Drill Targets (Exportable)")
+                drill_targets_grid = gr.Dataframe(
+                    headers=["Target ID", "Confidence", "Primary Driver (SHAP)", "Easting", "Northing"],
+                    datatype=["str", "str", "str", "number", "number"],
+                    row_count=5,
+                    col_count=(5, "fixed"),
+                )
+                
+                with gr.Accordion("LLM Reporting Sandbox (Analyst Chat)", open=False):
+                    chatbot = gr.Chatbot(label="JR MineralForge Analyst", height=300)
+                    chat_input = gr.Textbox(placeholder='e.g. Provide a business case for targeting JR-T001', label="Analyst Query")
+                    chat_input.submit(chat_with_jr, [chat_input, chatbot], [chat_input, chatbot])
 
-                with gr.Accordion("Advanced: State Survey WFS", open=False):
-                    with gr.Row():
-                        state_code = gr.Dropdown(choices=["WA", "QLD", "NSW"], label="State", value="WA")
-                        layer_input = gr.Textbox(label="WFS Layer Name", placeholder="e.g. Geology:SurfaceGeology")
-                        state_btn = gr.Button("Fetch State Data")
-
-                ingest_output = gr.Textbox(
-                    label="Ingestion Status", lines=20, max_lines=30
+                run_btn.click(
+                    run_prospectivity, 
+                    inputs=[province_select, tenement_upload], 
+                    outputs=[pipeline_status, map_display, drill_targets_grid, kpi_html_display]
                 )
 
-                check_btn.click(run_check_data, outputs=ingest_output)
+            # ── Tab 2: Data & Engine Settings ─────────────────────────
+            with gr.Tab("⚙️ Engine Architecture Config"):
+                gr.Markdown("""
+                ### Dynamic OGC Endpoint Routing
+                Manage data source ingestion priorities and WFS clipping layers.
+                """)
+                
+                with gr.Row():
+                    sarig_btn = gr.Button("🦘 Force SARIG Clip (South Australia)", variant="primary")
+                    ga_btn = gr.Button("🌏 Force GA Sync (National)", variant="secondary")
+
+                ingest_output = gr.Textbox(label="Ingestion Trace Logs", lines=15)
                 sarig_btn.click(run_sarig_ingest, inputs=province_select, outputs=ingest_output)
-                tasmania_btn.click(run_tasmania_ingest, inputs=province_select, outputs=ingest_output)
                 ga_btn.click(run_ga_ingest, inputs=province_select, outputs=ingest_output)
-                state_btn.click(run_state_ingest, inputs=[state_code, layer_input, province_select], outputs=ingest_output)
-
-            # ── Tab 3: Prospectivity ──────────────────────────
-            with gr.Tab("🗺️ Prospectivity Map"):
-                gr.Markdown("""
-### Mineral Prospectivity Pipeline
-Generates ranked IOCG drill targets using ensemble ML with national awareness.
-                """)
-                
-                with gr.Row():
-                    province_map_select = gr.Dropdown(
-                        choices=["mount_woods", "yilgarn_craton", "mt_isa_inlier", "lachlan_fold_belt", "pilbara_craton", "pine_creek"],
-                        value="mount_woods",
-                        label="Discovery Province"
-                    )
-                    run_sweep_btn = gr.Button("🚀 Run National Sweep (Experimental)", variant="secondary")
-
-                run_btn = gr.Button("▶ Run Full Prospectivity Pipeline", variant="primary")
-                pipeline_status = gr.Textbox(label="Pipeline Status", lines=10)
-                map_display = gr.HTML(label="Interactive Prospectivity Map")
-
-                run_btn.click(run_prospectivity, inputs=province_map_select, outputs=[pipeline_status, map_display])
-                run_sweep_btn.click(run_national_sweep, outputs=pipeline_status)
-
-            # ── Tab 4: Winners Analysis ───────────────────────
-            with gr.Tab("🏆 Winner Analysis"):
-                gr.Markdown("""
-### OZ Minerals Explorer Challenge 2019 – Winner Strategy Analysis
-Understand how Team JR's JR MineralForge improves upon each prize-winning strategy.
-                """)
-
-                list_btn = gr.Button("📋 List All Winners", variant="secondary")
-                winners_display = gr.Textbox(label="Winners Overview", lines=15, max_lines=20)
-                list_btn.click(list_winners, outputs=winners_display)
-
-                gr.Markdown("---\n**Analyse a Specific Winner:**")
-                with gr.Row():
-                    winner_input = gr.Dropdown(
-                        choices=["Team Guru", "DeepSightX", "deCODES", "SRK Consulting", "OreFox"],
-                        label="Select Team",
-                        value="Team Guru",
-                    )
-                    analyse_btn = gr.Button("Analyse & Compare", variant="primary")
-
-                winner_analysis = gr.Textbox(label="Analysis & JR Improvements", lines=20, max_lines=30)
-                analyse_btn.click(analyse_winner, inputs=winner_input, outputs=winner_analysis)
-
-            # ── Tab 5: Reports ────────────────────────────────
-            with gr.Tab("📄 Reports"):
-                gr.Markdown("""
-### JR MineralForge Reporting
-Generate branded reports, SHAP importance plots, and target confidence charts.
-All outputs are labelled: **Produced by JR MineralForge for Team JR**.
-                """)
-
-                with gr.Row():
-                    report_btn = gr.Button("📊 Generate Full Report", variant="primary")
-                    kb_btn = gr.Button("🔄 Rebuild Knowledge Base", variant="secondary")
-
-                report_preview = gr.Textbox(label="Report Preview", lines=20, max_lines=30)
-                report_file = gr.File(label="Download Report")
-                report_btn.click(generate_report, outputs=[report_preview, report_file])
-                kb_btn.click(rebuild_kb, outputs=report_preview)
 
         # Footer
         gr.HTML(f"""
         <div style="text-align: center; padding: 16px; color: #555;
                     font-size: 0.85em; border-top: 1px solid #2d3748; margin-top: 20px;">
-            {BRAND_FOOTER} |
-            Open Data: <a href="https://map.sarig.sa.gov.au" target="_blank"
-               style="color: #4a9eff;">SARIG</a> ·
-            <a href="https://portal.ga.gov.au" target="_blank"
-               style="color: #4a9eff;">Geoscience Australia</a>
+            {BRAND_FOOTER} | Commercial Evaluation System
         </div>
         """)
 
