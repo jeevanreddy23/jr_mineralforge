@@ -79,6 +79,21 @@ def run_tasmania_ingest(province_id: str = "tasmania_mount_read") -> str:
         return f"❌ Error: {e}"
 
 
+def run_sarig_ingest(province_id: str = "mount_woods") -> str:
+    try:
+        from agents.data_ingestion_agent import SARIGIngestionAgent
+        from config.settings import AUSTRALIAN_PROVINCES
+        bbox = AUSTRALIAN_PROVINCES.get(province_id, AUSTRALIAN_PROVINCES["mount_woods"])
+        agent = SARIGIngestionAgent(bbox=bbox)
+        
+        # Download key datasets using the explicit method structure provided
+        agent.download_package("surface_geology")
+        results = [str(p) for p in agent.processed_dir.glob("*")]
+        return f"✅ SARIG (South Australia) Ingestion Complete for {bbox.name}\n\nProcessed files:\n" + "\n".join(results)
+    except Exception as e:
+        return f"❌ Error: {e}"
+
+
 def run_ga_ingest(province_id: str = "mount_woods") -> str:
     try:
         from agents.data_ingestion_agent import GAIngestionAgent
@@ -343,6 +358,7 @@ Downloads from **SARIG**, **Geoscience Australia**, and **State Geological Surve
 
                 with gr.Row():
                     check_btn = gr.Button("🔍 Check Available Data", variant="secondary")
+                    sarig_btn = gr.Button("🦘 Ingest SARIG (South Australia)", variant="primary")
                     tasmania_btn = gr.Button("🇦🇺 Ingest MRT (Tasmania)", variant="primary")
                     ga_btn = gr.Button("🌏 Ingest GA Data (National)", variant="primary")
 
@@ -357,6 +373,7 @@ Downloads from **SARIG**, **Geoscience Australia**, and **State Geological Surve
                 )
 
                 check_btn.click(run_check_data, outputs=ingest_output)
+                sarig_btn.click(run_sarig_ingest, inputs=province_select, outputs=ingest_output)
                 tasmania_btn.click(run_tasmania_ingest, inputs=province_select, outputs=ingest_output)
                 ga_btn.click(run_ga_ingest, inputs=province_select, outputs=ingest_output)
                 state_btn.click(run_state_ingest, inputs=[state_code, layer_input, province_select], outputs=ingest_output)
