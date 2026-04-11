@@ -139,8 +139,13 @@ class JRMineralForgeOrchestrator:
             response = self.llm_with_tools.invoke(messages)
             messages.append(response)
             
-            if not response.tool_calls:
-                return response.content
+            # Safe fallback for non-tool-calling models (like kimi-k2.5:cloud)
+            if isinstance(response, str):
+                return response
+            
+            # Normal structured handling
+            if not hasattr(response, 'tool_calls') or not response.tool_calls:
+                return response.content if hasattr(response, 'content') else str(response)
             
             for tool_call in response.tool_calls:
                 tool_name = tool_call["name"]
