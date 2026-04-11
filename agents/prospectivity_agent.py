@@ -183,9 +183,13 @@ class ProspectivityMappingAgent:
 
         # Step 1: Datacube
         ds = assemble_feature_datacube(self.bbox)
-        if ds is None:
-            log.error("No datacube available — ingestion required first")
-            return {"error": "No data available. Run ingestion agents first."}
+        if ds is None or len(ds.data_vars) == 0:
+            log.warning(f"No datacube available for {self.bbox.name}. Expansion required.")
+            return {
+                "error": f"No geophysical data found for the selected region ({self.bbox.name}).",
+                "status": "failed",
+                "suggestion": "Expand the boundary polygon or ensure you are targeting a valid Australian mineral province."
+            }
 
         # Step 2: Prediction grid
         log.info("Generating prediction grid …")

@@ -86,30 +86,36 @@ def run_prospectivity(province_id: str = "mount_woods", file_obj=None) -> tuple[
         bbox = AUSTRALIAN_PROVINCES.get(province_id, AUSTRALIAN_PROVINCES["mount_woods"])
         
         # 1. Parse Tenement Boundary
+        status_logs = []
         if file_obj is not None:
-            try:
-                file_path = file_obj.name if hasattr(file_obj, 'name') else str(file_obj)
-                gdf = gpd.read_file(file_path)
-                if gdf.crs and gdf.crs.to_epsg() != 4326:
-                    gdf = gdf.to_crs(epsg=4326)
+            from utils.geometry_handler import validate_and_fix_geometry
+            file_path = file_obj.name if hasattr(file_obj, 'name') else str(file_obj)
+            status_logs.append(f"🔍 Analyzing uploaded file: {Path(file_path).name}…")
+            fixed_bbox = validate_and_fix_geometry(file_path)
+            if fixed_bbox:
+                bbox = fixed_bbox
+                status_logs.append(f"🛠️ Self-Correction Applied: {bbox.description}")
+            else:
+                status_logs.append(f"⚠️ Geometry fix failed, falling back to {province_id}")
+        else:
+            status_logs.append(f"📍 Using default region: {province_id}")
                 
-                minx, miny, maxx, maxy = gdf.total_bounds
-                bbox = BoundingBox(
-                    name=f"Tenement_{Path(file_path).stem}",
-                    min_lon=minx, max_lon=maxx,
-                    min_lat=miny, max_lat=maxy,
-                    description="User Uploaded Tenement Boundary"
-                )
-            except Exception as e:
-                pass # fallback to province if shapefile parse fails
-                
-        # 2. Force Dynamic Ingestion to the new bounding box before compute
+        # 2. Force Dynamic Ingestion
         from agents.data_ingestion_agent import SARIGIngestionAgent
-        SARIGIngestionAgent(bbox=bbox).ingest_all()
+        status_logs.append(f"🛰️ Pulling live OGC data for {bbox.name}…")
+        ingestor = SARIGIngestionAgent(bbox=bbox)
+        ingestor.ingest_all()
+        status_logs.append("✅ Data Ingestion Synchronized.")
 
         # 3. Target Generation
+        status_logs.append("🧠 Initializing ML Prospectivity Pipeline…")
         agent = ProspectivityMappingAgent(bbox=bbox)
         results = agent.run_full_pipeline()
+        
+        if "error" in results:
+             raise ValueError(results["error"])
+
+        status_logs.append(f"🎯 Generated {results.get('n_targets', 0)} high-confidence drill targets.")
         
         # 4. Map Extraction
         map_path = results.get("interactive_map", "")
@@ -127,7 +133,7 @@ def run_prospectivity(province_id: str = "mount_woods", file_obj=None) -> tuple[
         if csv_path and Path(csv_path).exists():
             df = pd.read_csv(csv_path)
             target_count = len(df)
-            max_conf = max(df.get("confidence_score", [0])) if "confidence_score" in df.columns else 0.0
+            max_conf = float(df["confidence_score"].max()) if "confidence_score" in df.columns and not df.empty else 0.0
             
             df_out = pd.DataFrame()
             df_out["Target ID"] = df.get("target_label", [f"T-{i}" for i in range(len(df))])
@@ -141,23 +147,26 @@ def run_prospectivity(province_id: str = "mount_woods", file_obj=None) -> tuple[
 
         kpi_metrics = f"""
         <div class="kpi-container">
-            <div class="kpi-box"><div class="kpi-title">Data Processed</div><div class="kpi-value" id="kpi-data">Bounded</div></div>
-            <div class="kpi-box"><div class="kpi-title">Features Built</div><div class="kpi-value" id="kpi-features">ML Generated</div></div>
+            <div class="kpi-box"><div class="kpi-title">Data Status</div><div class="kpi-value" id="kpi-data">Live</div></div>
+            <div class="kpi-box"><div class="kpi-title">ML Samples</div><div class="kpi-value" id="kpi-features">{len(df) if csv_path else 'None'}</div></div>
             <div class="kpi-box"><div class="kpi-title">Max Confidence</div><div class="kpi-value" id="kpi-conf">{max_conf:.1f}%</div></div>
-            <div class="kpi-box"><div class="kpi-title">Targets Generated</div><div class="kpi-value" id="kpi-targets">{target_count}</div></div>
+            <div class="kpi-box"><div class="kpi-title">Targets</div><div class="kpi-value" id="kpi-targets">{target_count}</div></div>
         </div>
         """
 
-        return f"✅ Pipeline Complete for {bbox.name}\n{json.dumps(results, indent=2)}", map_html, df_out, kpi_metrics
+        full_logs = "\n".join(status_logs)
+        return f"✅ Pipeline Complete\n\n{full_logs}", map_html, df_out, kpi_metrics
     except Exception as e:
-        import pandas as pd
-        fallback_kpi = """
+        import traceback
+        log.error(f"Pipeline Crash: {e}\n{traceback.format_exc()}")
+        fallback_kpi = f"""
         <div class="kpi-container">
-            <div class="kpi-box"><div class="kpi-title">Status</div><div class="kpi-value" style="color: #ff4a4a;">FAILED</div></div>
-            <div class="kpi-box"><div class="kpi-title">Reason</div><div class="kpi-value" style="color: #ff4a4a; font-size: 1em;">Pipeline Error</div></div>
+            <div class="kpi-box"><div class="kpi-title">Execution</div><div class="kpi-value" style="color: #ff4a4a;">FAILED</div></div>
+            <div class="kpi-box"><div class="kpi-title">Error Type</div><div class="kpi-value" style="color: #ff4a4a; font-size: 0.9em;">{type(e).__name__}</div></div>
         </div>
         """
-        return f"❌ Error: {e}", "<p>Error generating pipeline output.</p>", pd.DataFrame(), fallback_kpi
+        err_msg = f"❌ Error: {str(e)}\n\n💡 Try expanding the search region or checking if the uploaded file contains valid Australian locations."
+        return err_msg, f"<div style='color:red; padding:20px;'><h3>Pipeline Error</h3><p>{str(e)}</p></div>", pd.DataFrame(), fallback_kpi
 
 
 def run_national_sweep() -> str:
