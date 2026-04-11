@@ -29,7 +29,7 @@ from langchain_community.document_loaders import (
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
-from langchain.chains import RetrievalQA
+from langchain_classic.chains import RetrievalQA
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
