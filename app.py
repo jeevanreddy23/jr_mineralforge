@@ -17,6 +17,10 @@ from dotenv import load_dotenv
 load_dotenv()
 from pathlib import Path
 
+# Self-Healing Pre-flight Setup
+from utils.dependency_manager import check_and_install_dependencies
+check_and_install_dependencies()
+
 import gradio as gr
 
 from config.settings import (
@@ -47,74 +51,27 @@ def get_orchestrator():
 
 # ─── Actions ─────────────────────────────────────────────────────
 
-def chat_with_jr(message: str, history: list) -> tuple[str, list]:
-    """Handle RAG chat queries."""
+def get_supervisor():
+    from main import RigidMultiAgentSupervisor
+    return RigidMultiAgentSupervisor()
+
+def chat_supervisor_nli(message: str, history: list) -> tuple[str, list]:
+    """Execute simple Supervisor NLP target routing."""
     if not message.strip():
         return "", history
-    orc = get_orchestrator()
+        
+    sup = get_supervisor()
     try:
-        response = orc.run(message)
-        if hasattr(response, "content") and response.content:
-            response = response.content
-        elif not isinstance(response, str):
-            response = str(response)
+        # We only hit Agent 1 (NLI Processor) explicitly
+        params = sup.run_nli_extraction(message)
+        response = f"✅ NLI Extracted Constraints: \nCommodity: {params.get('commodity', 'Cu-Au')}\nRegion: {params.get('province_id', 'mount_woods')}\nReady for Execution."
     except Exception as e:
-        response = f"❌ Error processing request: {str(e)}\n\nTry a simpler question or switch to a tool-capable model like llama3.1:8b."
+        response = f"❌ Error extracting constraints: {str(e)}"
         
     history.append({"role": "user", "content": str(message)})
     history.append({"role": "assistant", "content": str(response)})
     
     return "", history
-
-
-def run_tasmania_ingest(province_id: str = "tasmania_mount_read") -> str:
-    try:
-        from agents.data_ingestion_agent import TasmaniaIngestionAgent
-        from config.settings import AUSTRALIAN_PROVINCES
-        bbox = AUSTRALIAN_PROVINCES.get(province_id, AUSTRALIAN_PROVINCES["tasmania_mount_read"])
-        agent = TasmaniaIngestionAgent(bbox=bbox)
-        results = agent.ingest_all()
-        return f"✅ MRT (Tasmania) Ingestion Complete for {bbox.name}\n\n{json.dumps(results, indent=2)}"
-    except Exception as e:
-        return f"❌ Error: {e}"
-
-
-def run_sarig_ingest(province_id: str = "mount_woods") -> str:
-    try:
-        from agents.data_ingestion_agent import SARIGIngestionAgent
-        from config.settings import AUSTRALIAN_PROVINCES
-        bbox = AUSTRALIAN_PROVINCES.get(province_id, AUSTRALIAN_PROVINCES["mount_woods"])
-        agent = SARIGIngestionAgent(bbox=bbox)
-        
-        # Download all SARIG datasets (geology, drillholes, geochem)
-        results = agent.ingest_all()
-        return f"✅ SARIG (South Australia) Ingestion Complete for {bbox.name}\n\n{json.dumps(results, indent=2)}"
-    except Exception as e:
-        return f"❌ Error: {e}"
-
-
-def run_ga_ingest(province_id: str = "mount_woods") -> str:
-    try:
-        from agents.data_ingestion_agent import GAIngestionAgent
-        from config.settings import AUSTRALIAN_PROVINCES
-        bbox = AUSTRALIAN_PROVINCES.get(province_id, AUSTRALIAN_PROVINCES["mount_woods"])
-        agent = GAIngestionAgent(bbox=bbox)
-        results = agent.ingest_all()
-        return f"✅ GA Ingestion Complete for {bbox.name}\n\n{json.dumps(results, indent=2)}"
-    except Exception as e:
-        return f"❌ Error: {e}"
-
-
-def run_state_ingest(state_code, layer, province_id) -> str:
-    try:
-        from agents.data_ingestion_agent import StateSurveyIngestionAgent
-        from config.settings import AUSTRALIAN_PROVINCES
-        bbox = AUSTRALIAN_PROVINCES.get(province_id, AUSTRALIAN_PROVINCES["mount_woods"])
-        agent = StateSurveyIngestionAgent(bbox=bbox)
-        res = agent.ingest_from_portal(state_code, layer)
-        return f"✅ State Ingestion Started: {res}"
-    except Exception as e:
-        return f"❌ Error: {e}"
 
 
 def run_prospectivity(province_id: str = "mount_woods", file_obj=None) -> tuple[str, str, object, str]:
@@ -385,17 +342,8 @@ footer { display: none !important; }
 # ─── Build UI ────────────────────────────────────────────────────
 
 def build_ui() -> gr.Blocks:
-    with gr.Blocks(
-        title=f"{BRAND_NAME} | {TEAM_NAME}",
-        css=CUSTOM_CSS,
-        theme=gr.themes.Base(
-            primary_hue="yellow",
-            secondary_hue="blue",
-            neutral_hue="slate",
-            font=["Inter", "sans-serif"],
-        ),
-    ) as demo:
-
+    demo = gr.Blocks(title=f"{BRAND_NAME} | {TEAM_NAME}")
+    with demo:
         # Header
         gr.HTML(f"""
         <div class="brand-header">
@@ -439,13 +387,13 @@ def build_ui() -> gr.Blocks:
                     headers=["Target ID", "Confidence", "Primary Driver (SHAP)", "Easting", "Northing"],
                     datatype=["str", "str", "str", "number", "number"],
                     row_count=5,
-                    col_count=(5, "fixed"),
+                    column_count=(5, "fixed"),
                 )
                 
                 with gr.Accordion("LLM Reporting Sandbox (Analyst Chat)", open=False):
                     chatbot = gr.Chatbot(label="JR MineralForge Analyst", height=300)
                     chat_input = gr.Textbox(placeholder='e.g. Provide a business case for targeting JR-T001', label="Analyst Query")
-                    chat_input.submit(chat_with_jr, [chat_input, chatbot], [chat_input, chatbot])
+                    chat_input.submit(chat_supervisor_nli, [chat_input, chatbot], [chat_input, chatbot])
 
                 run_btn.click(
                     run_prospectivity, 
@@ -465,8 +413,8 @@ def build_ui() -> gr.Blocks:
                     ga_btn = gr.Button("🌏 Force GA Sync (National)", variant="secondary")
 
                 ingest_output = gr.Textbox(label="Ingestion Trace Logs", lines=15)
-                sarig_btn.click(run_sarig_ingest, inputs=province_select, outputs=ingest_output)
-                ga_btn.click(run_ga_ingest, inputs=province_select, outputs=ingest_output)
+                sarig_btn.click(lambda x: "SARIG Explicit Sync is now managed by Supervisor NLI.", inputs=province_select, outputs=ingest_output)
+                ga_btn.click(lambda x: "GA Explicit Sync is now managed by Supervisor NLI.", inputs=province_select, outputs=ingest_output)
 
         # Footer
         gr.HTML(f"""
@@ -485,7 +433,7 @@ def main():
     demo = build_ui()
     demo.launch(
         server_name="0.0.0.0",
-        server_port=7860,
+        server_port=7865,
         share=False,
         favicon_path=None,
         show_error=True,
