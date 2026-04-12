@@ -64,9 +64,9 @@ def chat_supervisor_nli(message: str, history: list) -> tuple[str, list]:
     try:
         # We only hit Agent 1 (NLI Processor) explicitly
         params = sup.run_nli_extraction(message)
-        response = f"✅ NLI Extracted Constraints: \nCommodity: {params.get('commodity', 'Cu-Au')}\nRegion: {params.get('province_id', 'mount_woods')}\nReady for Execution."
+        response = f"[OK] NLI Extracted Constraints: \nCommodity: {params.get('commodity', 'Cu-Au')}\nRegion: {params.get('province_id', 'mount_woods')}\nReady for Execution."
     except Exception as e:
-        response = f"❌ Error extracting constraints: {str(e)}"
+        response = f"[ERROR] Error extracting constraints: {str(e)}"
         
     history.append({"role": "user", "content": str(message)})
     history.append({"role": "assistant", "content": str(response)})
@@ -90,32 +90,32 @@ def run_prospectivity(province_id: str = "mount_woods", file_obj=None) -> tuple[
         if file_obj is not None:
             from utils.geometry_handler import validate_and_fix_geometry
             file_path = file_obj.name if hasattr(file_obj, 'name') else str(file_obj)
-            status_logs.append(f"🔍 Analyzing uploaded file: {Path(file_path).name}…")
+            status_logs.append(f"[INFO] Analyzing uploaded file: {Path(file_path).name}...")
             fixed_bbox = validate_and_fix_geometry(file_path)
             if fixed_bbox:
                 bbox = fixed_bbox
-                status_logs.append(f"🛠️ Self-Correction Applied: {bbox.description}")
+                status_logs.append(f"[OK] Self-Correction Applied: {bbox.description}")
             else:
-                status_logs.append(f"⚠️ Geometry fix failed, falling back to {province_id}")
+                status_logs.append(f"[WARN] Geometry fix failed, falling back to {province_id}")
         else:
-            status_logs.append(f"📍 Using default region: {province_id}")
+            status_logs.append(f"[INFO] Using default region: {province_id}")
                 
         # 2. Force Dynamic Ingestion
         from agents.data_ingestion_agent import SARIGIngestionAgent
-        status_logs.append(f"🛰️ Pulling live OGC data for {bbox.name}…")
+        status_logs.append(f"[INFO] Pulling live OGC data for {bbox.name}...")
         ingestor = SARIGIngestionAgent(bbox=bbox)
         ingestor.ingest_all()
-        status_logs.append("✅ Data Ingestion Synchronized.")
+        status_logs.append("[OK] Data Ingestion Synchronized.")
 
         # 3. Target Generation
-        status_logs.append("🧠 Initializing ML Prospectivity Pipeline…")
+        status_logs.append("[INFO] Initializing ML Prospectivity Pipeline...")
         agent = ProspectivityMappingAgent(bbox=bbox)
         results = agent.run_full_pipeline()
         
         if "error" in results:
              raise ValueError(results["error"])
 
-        status_logs.append(f"🎯 Generated {results.get('n_targets', 0)} high-confidence drill targets.")
+        status_logs.append(f"[OK] Generated {results.get('n_targets', 0)} high-confidence drill targets.")
         
         # 4. Map Extraction
         map_path = results.get("interactive_map", "")
@@ -442,10 +442,8 @@ def main():
     demo = build_ui()
     demo.launch(
         server_name="0.0.0.0",
-        server_port=7866,
-        share=False,
-        favicon_path=None,
-        show_error=True,
+        server_port=7867,
+        share=False
     )
 
 

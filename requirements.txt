@@ -1,60 +1,48 @@
-# JR MineralForge – Python Dependencies (Conda-Friendly / Version-Unlocked)
-# Team JR – Advancing Mineral Discovery with Robust AI & Open Australian Geodata
+# JR MineralForge - Commercial Requirements
+# Standardized for Anaconda/Conda Environments on Windows
+# Use 'conda install' for the geospatial stack when possible
 
-langchain
-langchain-community
-langchain-core
-langchain-ollama
-langchain-openai
-langchain-anthropic
-
-faiss-cpu
-sentence-transformers
-huggingface-hub
-transformers
-
-pypdf
-unstructured
-
-# Geospatial - these are usually handled by Conda now
+# -- Scientific & Geospatial Core --
+# (Recommended: conda install -c conda-forge geopandas rasterio xarray)
 geopandas
 rasterio
-pyproj
+fiona
 shapely
+pyproj
 xarray
+netCDF4
+h5netcdf
 scipy
-pywavelets
-folium
-owslib
-
-# ML / Data Science
-numpy
-pandas
 scikit-learn
-xgboost
-lightgbm
-shap
+pandas
+numpy
+pywavelets
+
+# -- AI & UI --
+gradio
+langchain
+langchain-community
+langchain-openai
+langchain-anthropic
+openai
+anthropic
+sentence-transformers
+faiss-cpu
+python-dotenv
 mlflow
 
-# Visualisation
+# -- Interpretation & Visualization --
+folium
 matplotlib
 seaborn
+shap
 plotly
 
-# UI
-gradio
-
-# Utilities
-python-dotenv
-pyyaml
-rich
-click
+# -- Reporting & Utilities --
 requests
-aiohttp
+beautifulsoup4
+html5lib
+aiofiles
+psutil
 tqdm
-
-# Dev / Testing
-pytest
-pytest-cov
-black
-ruff
+pypdf

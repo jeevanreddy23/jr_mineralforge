@@ -98,7 +98,7 @@ def reproject_raster(
     if resampling is None:
         resampling = Resampling.bilinear
 
-    log.info(f"Reprojecting {src_path.name} → {target_crs} @ {resolution}m")
+    log.info(f"Reprojecting {src_path.name} -> {target_crs} @ {resolution}m")
     with rasterio.open(src_path) as src:
         transform, width, height = calculate_default_transform(
             src.crs, target_crs, src.width, src.height, *src.bounds,
@@ -125,7 +125,7 @@ def reproject_raster(
                     dst_crs=target_crs,
                     resampling=resampling,
                 )
-    log.info(f"  → saved to {dst_path}")
+    log.info(f"  -> saved to {dst_path}")
     return dst_path
 
 
@@ -156,7 +156,7 @@ def clip_raster_to_bbox(
         out_path.parent.mkdir(parents=True, exist_ok=True)
         with rasterio.open(out_path, "w", **out_meta) as dst:
             dst.write(out_image)
-        log.info(f"Clipped raster saved → {out_path}")
+        log.info(f"Clipped raster saved -> {out_path}")
     return out_image, out_meta
 
 
@@ -170,14 +170,15 @@ def raster_to_xarray(raster_path: Path, name: str) -> Any:
         nodata = src.nodata if src.nodata is not None else RASTER_NODATA
         data = np.where(data == nodata, np.nan, data)
         height, width = data.shape
-        cols, rows = np.meshgrid(
-            np.arange(width), np.arange(height)
-        )
-        xs, ys = rasterio.transform.xy(src.transform, rows, cols)
+        # Use 1D coordinates for standard grid alignment
+        t = src.transform
+        xs = np.array([t[2] + (i + 0.5) * t[0] for i in range(width)])
+        ys = np.array([t[5] + (i + 0.5) * t[4] for i in range(height)])
+        
         da = xr.DataArray(
             data,
             dims=["y", "x"],
-            coords={"y": (["y", "x"], np.array(ys)), "x": (["y", "x"], np.array(xs))},
+            coords={"y": ys, "x": xs},
             name=name,
             attrs={"crs": str(src.crs), "transform": list(src.transform)},
         )

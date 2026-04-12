@@ -503,7 +503,7 @@ class ProspectivityMLEngine:
                 "feature_cols": self.feature_cols,
                 "cv_results": self.cv_results,
             }, f)
-        log.info(f"Models saved → {MODELS_DIR / 'ml_engine.pkl'}")
+        log.info(f"Models saved -> {MODELS_DIR / 'ml_engine.pkl'}")
 
     @classmethod
     def load(cls) -> "ProspectivityMLEngine":

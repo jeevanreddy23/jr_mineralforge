@@ -268,6 +268,49 @@ def generate_full_report(targets_json: str = "{}") -> str:
 
 
 @tool
+def generate_text_report() -> str:
+    """
+    Generate a concise text-based executive summary including the top mineral targets 
+    and primary geological drivers. Matches the reporting expectations of the UI.
+    """
+    try:
+        from config.settings import REPORTS_DIR
+        # Check for existing results first
+        csv_path = REPORTS_DIR / "ranked_targets.csv"
+        if not csv_path.exists():
+            return "No recent pipeline results found. Please run the Prospectivity Pipeline first."
+        
+        df = pd.read_csv(csv_path)
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+        
+        lines = [
+            f"{'='*60}",
+            f"{BRAND_NAME} | Executive Drill-or-Drop Brief",
+            f"Generated: {timestamp}",
+            f"{'='*60}\n",
+            "EXECUTIVE SUMMARY:",
+            f"The Multi-Agent Prospectivity Engine has identified {len(df)} discrete",
+            "geophysical anomalies within the study area. These targets have been",
+            "scored using a Balanced Random Forest ensemble with SHAP quantification.\n",
+            "TOP DRILL TARGETS (Ranked by Confidence):"
+        ]
+        
+        for _, row in df.head(5).iterrows():
+            lines.append(f"🟢 {row['target_label']} - Confidence: {row['confidence_score']}%")
+            lines.append(f"   Driver: {str(row.get('primary_driver', 'Structural Grid Anomaly')).upper()}")
+            lines.append(f"   Location: {row['lat']:.4f}, {row['lon']:.4f}\n")
+            
+        lines.append(f"\n{BRAND_FOOTER}")
+        
+        # Save to disk as well
+        report_text = "\n".join(lines)
+        (REPORTS_DIR / "jr_mineralforge_report.txt").write_text(report_text)
+        return report_text
+    except Exception as e:
+        return f"Error generating text report: {e}"
+
+
+@tool
 def explain_target(target_label: str, features_json: str = "{}") -> str:
     """
     Provide a geological explanation for a specific ranked drill target.

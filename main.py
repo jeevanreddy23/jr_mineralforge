@@ -122,3 +122,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# Alias for app.py compatibility
+JRMineralForgeOrchestrator = RigidMultiAgentSupervisor

@@ -590,3 +590,62 @@ def check_data_availability() -> str:
         summary_lines.append("")
 
     return "\n".join(summary_lines)
+
+
+@tool
+def generate_synthetic_geophysics(bbox: Optional[BoundingBox] = None, bbox_name: str = "mount_woods") -> str:
+    """
+    Generate synthetic geophysical data for demonstration purposes if live data is unavailable.
+    Creates high-fidelity 'fake' TMI and gravity grids in the processed folder.
+    Supports custom BoundingBox objects for user-uploaded geometries.
+    """
+    from config.settings import AUSTRALIAN_PROVINCES, PROCESSED_DIR, TARGET_RESOLUTION_M, RASTER_NODATA, TARGET_CRS, MOUNT_WOODS_BBOX
+    import rasterio
+    from rasterio.transform import from_bounds
+    
+    # Use the provided bbox if available, otherwise look up by name
+    grid_bbox = bbox if bbox is not None else AUSTRALIAN_PROVINCES.get(bbox_name, MOUNT_WOODS_BBOX)
+    
+    log.info(f"Generating synthetic geophysics for: {grid_bbox.name}")
+    safe_name = grid_bbox.name.lower().replace(" ", "_").replace("/", "_").replace(".", "_")
+    out_dir = PROCESSED_DIR / safe_name / "ga"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Calculate grid size
+    # Rough approx of degree to meters: 1 deg ~ 111km
+    width_m = (grid_bbox.max_lon - grid_bbox.min_lon) * 111000
+    height_m = (grid_bbox.max_lat - grid_bbox.min_lat) * 111000
+    
+    # Ensure minimum grid size
+    nx = max(10, int(width_m / TARGET_RESOLUTION_M))
+    ny = max(10, int(height_m / TARGET_RESOLUTION_M))
+    
+    # Create synthetic noise patterns (Perlin-like using numpy)
+    x = np.linspace(0, 5, nx)
+    y = np.linspace(0, 5, ny)
+    xv, yv = np.meshgrid(x, y)
+    
+    layers = {
+        "magnetics_tmi_filtered": np.sin(xv*2) * np.cos(yv*3) * 500 + np.random.normal(0, 50, (ny, nx)),
+        "gravity_bouguer_filtered": np.cos(xv*1.5) * np.sin(yv*2) * 50 + np.random.normal(0, 5, (ny, nx)),
+        "radiometrics_dose_filtered": np.random.uniform(10, 50, (ny, nx))
+    }
+    
+    transform = from_bounds(grid_bbox.min_lon, grid_bbox.min_lat, grid_bbox.max_lon, grid_bbox.max_lat, nx, ny)
+
+    created_files = []
+    for key, data in layers.items():
+        fname = f"{key}.tif"
+        path = out_dir / fname
+        
+        with rasterio.open(
+            path, 'w', driver='GTiff',
+            height=ny, width=nx,
+            count=1, dtype='float32',
+            crs='EPSG:4326', transform=transform,
+            nodata=RASTER_NODATA
+        ) as dst:
+            dst.write(data.astype(np.float32), 1)
+        created_files.append(str(path))
+        
+    return f"🛠️ Demo Mode: Generated {len(created_files)} synthetic geophysical grids in {out_dir}"

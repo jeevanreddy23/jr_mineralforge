@@ -229,7 +229,8 @@ WAVELET_LEVEL = 3           # decomposition levels
 # ─────────────────────────────────────────────────────────────────
 # MLflow
 # ─────────────────────────────────────────────────────────────────
-MLFLOW_TRACKING_URI = str(MLFLOW_DIR)
+MLFLOW_TRACKING_PATH = ROOT_DIR / "mlflow_runs"
+MLFLOW_TRACKING_URI = f"file:///{MLFLOW_TRACKING_PATH.as_posix()}"
 MLFLOW_EXPERIMENT_NAME = "JR_MineralForge_Prospectivity"
 
 # ─────────────────────────────────────────────────────────────────

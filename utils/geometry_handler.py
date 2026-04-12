@@ -46,6 +46,27 @@ def validate_and_fix_geometry(file_path: str, buffer_km: float = 20.0) -> Option
             log.info("Reprojecting to WGS84...")
             gdf = gdf.to_crs(epsg=4326)
 
+        # Step 2: Complexity Guard (Mega-KML Handler)
+        # If the file has too many features, focus on the centroid of the most dense region
+        if len(gdf) > 50:
+            log.info(f"Large dataset detected ({len(gdf)} features). Focusing analysis on geographic centroid.")
+            centroid = gdf.geometry.unary_union.centroid
+            gdf = gpd.GeoDataFrame({"geometry": [centroid]}, crs=gdf.crs)
+        
+        # Step 3: Ensure geometry has sufficient area for geophysical context
+        # Winners' Tactic: Minimum 10km x 10km exploration area for regional context
+        bounds = gdf.total_bounds
+        width = bounds[2] - bounds[0]
+        height = bounds[3] - bounds[1]
+        
+        # If the bounding box is smaller than 2km (point or small line), apply a 10km buffer
+        if width < 2000 or height < 2000:
+            log.info("Geometry too small for regional analysis; applying 10km exploration buffer.")
+            # Reproject to meters for accurate buffering
+            gdf_m = gdf.to_crs(epsg=3857) # Web Mercator for planar distance
+            gdf_m["geometry"] = gdf_m.geometry.buffer(10000) # 10km buffer
+            gdf = gdf_m.to_crs(epsg=4326) # Return to WGS84
+
         # Check if geometry is purely Point/Line
         all_points = all(isinstance(g, (Point, MultiPoint)) for g in gdf.geometry)
         all_lines = all(isinstance(g, (LineString, MultiLineString)) for g in gdf.geometry)
