@@ -79,4 +79,24 @@ Navigate to `http://localhost:7860` to access the Pipeline GUI in your browser.
 * **Open Source:** Feel free to submit PRs or raise issues to help support transparent exploration intelligence. 
 
 ---
+
+## 🛠️ JR MineralForge: Commercial Hardening & Deployment Roadmap
+
+This repository has undergone extensive hardening to ensure production-level stability for Australian exploration teams. Below is the historical deployment log and strategic roadmap.
+
+### Phase 1: Environment Stabilization
+* **Dependency Unpinning**: Resolved `ResolutionImpossible` errors in Anaconda/Windows environments by optimizing package version constraints.
+* **Pre-flight Manager**: Integrated automated dependency healing on application launch.
+* **Socket Management**: Fixed `Errno 10048` (port conflicts) by refining Gradio's server binding logic.
+
+### Phase 2: Pipeline Robustness & Fallbacks
+* **Geometry-Aware Synthetic Data**: Patched the `data_ingestion_agent` to support custom KML/SHP uploads. If live OGC data is unreachable, the system generates high-fidelity synthetic grids perfectly aligned with the user-provided geometry.
+* **XArray Alignment**: Fixed 2D-to-1D coordinate mapping in the feature datacube assembly, ensuring reliable ML inputs.
+* **Unicode Consolidation**: Switched all logging to ASCII standard to prevent terminal crashes on legacy Windows `cp1252` environments.
+
+### Phase 3: ML Engine & Weights
+* **Model Bootstrapping**: Added `scripts/bootstrap_model.py` to initialize the `ml_engine.pkl` weights on fresh installs, enabling "Drill or Drop" analysis without requiring manual training first.
+* **MLflow Tracking**: Optimized local tracking URIs for Windows filesystem absolute pathing schemas.
+
+---
 *Produced dynamically to leverage Open Australian Geodata securely and efficiently.*
