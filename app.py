@@ -87,6 +87,7 @@ def run_prospectivity(province_id: str = "mount_woods", file_obj=None) -> tuple[
         
         # 1. Parse Tenement Boundary
         status_logs = []
+        file_path = ""
         if file_obj is not None:
             from utils.geometry_handler import validate_and_fix_geometry
             file_path = file_obj.name if hasattr(file_obj, 'name') else str(file_obj)
@@ -100,12 +101,18 @@ def run_prospectivity(province_id: str = "mount_woods", file_obj=None) -> tuple[
         else:
             status_logs.append(f"[INFO] Using default region: {province_id}")
                 
-        # 2. Force Dynamic Ingestion
-        from agents.data_ingestion_agent import SARIGIngestionAgent
-        status_logs.append(f"[INFO] Pulling live OGC data for {bbox.name}...")
-        ingestor = SARIGIngestionAgent(bbox=bbox)
-        ingestor.ingest_all()
-        status_logs.append("[OK] Data Ingestion Synchronized.")
+        # 2. Force Dynamic Ingestion via v2.1 Swarm
+        from agents.data_ingestion_agent import run_mineralforge_swarm
+        status_logs.append("[TEAM JR SWARM] Initiating neural context field...")
+        
+        swarm_result_json = run_mineralforge_swarm.invoke({"file_path": str(file_path)})
+        swarm_data = json.loads(swarm_result_json)
+        
+        if swarm_data.get("status") == "Success":
+            status_logs.append(f"[OK] Resonance Achieved: {swarm_data['final_resonance']} ({swarm_data['status_label']})")
+            status_logs.append(f"[OK] Swarm settled after {swarm_data['iterations']} iterations.")
+        else:
+            status_logs.append(f"[ERROR] Swarm failed to reach resonance. {swarm_data.get('status', '')}")
 
         # 3. Target Generation
         status_logs.append("[INFO] Initializing ML Prospectivity Pipeline...")
@@ -440,9 +447,8 @@ def build_ui() -> gr.Blocks:
 
 def main():
     demo = build_ui()
+    # Let Gradio find an available port and use localhost by default for stability
     demo.launch(
-        server_name="0.0.0.0",
-        server_port=7867,
         share=False
     )
 

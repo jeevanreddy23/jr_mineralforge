@@ -497,7 +497,7 @@ class TasmaniaIngestionAgent:
             "version": "2.0.0",
             "request": "GetFeature",
             "typeName": "mrtwfs:MineralOccurrences",
-            "outputFormat": "GEOJSON",
+            "outputFormat": "application/json",
             "bbox": f"{self.bbox.min_lon},{self.bbox.min_lat},{self.bbox.max_lon},{self.bbox.max_lat}",
         }
         out = self.processed_dir / "tas_mineral_occurrences.geojson"
@@ -510,142 +510,110 @@ class TasmaniaIngestionAgent:
     def ingest_all(self) -> Dict[str, Any]:
         log.info("=== Tasmania (MRT) Ingestion Pipeline START ===")
         results = {}
-        
         geo = self.fetch_geology_wfs()
         results["tas_geology"] = {"status": "ok" if geo else "error", "file": str(geo)}
-        
         log.info("=== Tasmania (MRT) Ingestion Pipeline COMPLETE ===")
         return results
 
-
-
 # ─────────────────────────────────────────────────────────────────
-# LangChain Tool Wrappers
+# Team JR v2.1 Swarm Integration
 # ─────────────────────────────────────────────────────────────────
 
+from .swarm.orchestrator import SwarmOrchestrator
 from langchain.tools import tool
 
+@tool
+def run_mineralforge_swarm(file_path: str) -> str:
+    """
+    Primary data ingestion tool for v2.1. 
+    Uses a swarm of agents (Geometry, Search, Fallback, Validator, Integrator)
+    to ensuring high-resonance geospatial data for the pipeline.
+    Handles complex KML/SHP files by automatically calculating and expanding BBOX.
+    """
+    orchestrator = SwarmOrchestrator()
+    log.info(f"🚀 Initiating Team JR Swarm for: {file_path}")
+    
+    result = orchestrator.run_pipeline(file_path)
+    
+    if not result or "error" in result:
+        return f"❌ Swarm Failure: {result.get('error', 'Unknown Error') if result else 'No result'}"
+    
+    summary = {
+        "status": "Success",
+        "final_resonance": f"{result.get('resonance_score', 0.0):.2f}",
+        "status_label": result.get('resonance_status', 'Unknown'),
+        "bbox": result.get('bbox'),
+        "iterations": len(result.get('history', []))
+    }
+    
+    return json.dumps(summary, indent=2)
 
 @tool
 def run_sarig_ingestion(bbox_name: str = "mount_woods") -> str:
-    """
-    Run the full SARIG data ingestion pipeline for the specified area.
-    Downloads surface geology, mineral occurrences, drillholes, and geochemistry.
-    Returns a JSON summary of ingested datasets.
-    """
-    agent = SARIGIngestionAgent(bbox=MOUNT_WOODS_BBOX)
-    results = agent.ingest_all()
-    return json.dumps(results, indent=2)
-
-
-@tool
-def run_tasmania_ingestion(bbox_name: str = "tasmania_mount_read") -> str:
-    """
-    Run the Tasmania (MRT) data ingestion pipeline via WFS/REST.
-    """
-    from config.settings import AUSTRALIAN_PROVINCES
-    bbox = AUSTRALIAN_PROVINCES.get(bbox_name, AUSTRALIAN_PROVINCES.get("tasmania_mount_read", MOUNT_WOODS_BBOX))
-    agent = TasmaniaIngestionAgent(bbox=bbox)
-    results = agent.ingest_all()
-    return json.dumps(results, indent=2)
-
-
+    """Legacy tool - redirection to Swarm logic encouraged."""
+    return "Legacy tool. Please use 'run_mineralforge_swarm' for v2.1 reliability."
 
 @tool
 def run_ga_ingestion(bbox_name: str = "mount_woods") -> str:
-    """
-    Run the full Geoscience Australia data ingestion pipeline.
-    Downloads magnetics, gravity, radiometrics, elevation grids and OZMIN occurrences.
-    Returns a JSON summary of ingested and processed datasets.
-    """
-    agent = GAIngestionAgent(bbox=MOUNT_WOODS_BBOX)
-    results = agent.ingest_all()
-    return json.dumps(results, indent=2)
-
-
-@tool
-def check_data_availability() -> str:
-    """
-    Check which datasets have already been downloaded and are available locally.
-    Returns a formatted summary of available and missing datasets.
-    """
-    summary_lines = ["=== JR MineralForge – Data Availability Check ===\n"]
-
-    sarig_dir = RAW_DIR / "sarig"
-    ga_dir = RAW_DIR / "ga"
-    processed_dir = PROCESSED_DIR
-
-    for label, directory in [("SARIG Raw", sarig_dir), ("GA Raw", ga_dir), ("Processed", processed_dir)]:
-        summary_lines.append(f"[{label}] ({directory})")
-        if directory.exists():
-            files = list(directory.rglob("*.*"))
-            total_mb = sum(f.stat().st_size for f in files if f.is_file()) / 1e6
-            summary_lines.append(f"  {len(files)} files, {total_mb:.1f} MB total")
-            for f in sorted(files)[:10]:
-                summary_lines.append(f"  - {f.name}")
-            if len(files) > 10:
-                summary_lines.append(f"  ... and {len(files) - 10} more")
-        else:
-            summary_lines.append("  (not yet downloaded)")
-        summary_lines.append("")
-
-    return "\n".join(summary_lines)
-
+    """Legacy tool - redirection to Swarm logic encouraged."""
+    return "Legacy tool. Please use 'run_mineralforge_swarm' for v2.1 reliability."
 
 @tool
 def generate_synthetic_geophysics(bbox: Optional[BoundingBox] = None, bbox_name: str = "mount_woods") -> str:
     """
-    Generate synthetic geophysical data for demonstration purposes if live data is unavailable.
-    Creates high-fidelity 'fake' TMI and gravity grids in the processed folder.
-    Supports custom BoundingBox objects for user-uploaded geometries.
+    Generate synthetic geophysical data for demonstration purposes.
+    Redirected to use the FallbackGeneratorAgent from the v2.1 Swarm.
     """
-    from config.settings import AUSTRALIAN_PROVINCES, PROCESSED_DIR, TARGET_RESOLUTION_M, RASTER_NODATA, TARGET_CRS, MOUNT_WOODS_BBOX
-    import rasterio
-    from rasterio.transform import from_bounds
+    from .swarm.generator import FallbackGeneratorAgent
+    from config.settings import AUSTRALIAN_PROVINCES, MOUNT_WOODS_BBOX
     
-    # Use the provided bbox if available, otherwise look up by name
+    gen = FallbackGeneratorAgent()
     grid_bbox = bbox if bbox is not None else AUSTRALIAN_PROVINCES.get(bbox_name, MOUNT_WOODS_BBOX)
     
-    log.info(f"Generating synthetic geophysics for: {grid_bbox.name}")
-    safe_name = grid_bbox.name.lower().replace(" ", "_").replace("/", "_").replace(".", "_")
-    out_dir = PROCESSED_DIR / safe_name / "ga"
-    out_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Calculate grid size
-    # Rough approx of degree to meters: 1 deg ~ 111km
-    width_m = (grid_bbox.max_lon - grid_bbox.min_lon) * 111000
-    height_m = (grid_bbox.max_lat - grid_bbox.min_lat) * 111000
-    
-    # Ensure minimum grid size
-    nx = max(10, int(width_m / TARGET_RESOLUTION_M))
-    ny = max(10, int(height_m / TARGET_RESOLUTION_M))
-    
-    # Create synthetic noise patterns (Perlin-like using numpy)
-    x = np.linspace(0, 5, nx)
-    y = np.linspace(0, 5, ny)
-    xv, yv = np.meshgrid(x, y)
-    
-    layers = {
-        "magnetics_tmi_filtered": np.sin(xv*2) * np.cos(yv*3) * 500 + np.random.normal(0, 50, (ny, nx)),
-        "gravity_bouguer_filtered": np.cos(xv*1.5) * np.sin(yv*2) * 50 + np.random.normal(0, 5, (ny, nx)),
-        "radiometrics_dose_filtered": np.random.uniform(10, 50, (ny, nx))
+    # Target directory for the prospectivity engine to pick up
+    safe_name = grid_bbox.name.lower().replace(" ", "_").replace("/", "_")
+    target_dir = PROCESSED_DIR / safe_name / "ga"
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    bbox_dict = {
+        "min_lon": grid_bbox.min_lon,
+        "max_lon": grid_bbox.max_lon,
+        "min_lat": grid_bbox.min_lat,
+        "max_lat": grid_bbox.max_lat
     }
     
-    transform = from_bounds(grid_bbox.min_lon, grid_bbox.min_lat, grid_bbox.max_lon, grid_bbox.max_lat, nx, ny)
+    ds = gen.generate(bbox_dict)
+    
+    # Export individual layers as TIF for the stacker to pick up
+    import rasterio
+    from rasterio.transform import from_origin
+    
+    # Resolve exact filenames expected by assemble_feature_datacube
+    # Ensure they go into the structured 'ga' subfolder
+    
+    # Simple affine transform for synthetic grid
+    res_lon = (bbox_dict["max_lon"] - bbox_dict["min_lon"]) / ds.dims["lon"]
+    res_lat = (bbox_dict["max_lat"] - bbox_dict["min_lat"]) / ds.dims["lat"]
+    transform = from_origin(bbox_dict["min_lon"], bbox_dict["max_lat"], res_lon, res_lat)
 
-    created_files = []
-    for key, data in layers.items():
-        fname = f"{key}.tif"
-        path = out_dir / fname
+    mappings = [
+        ("magnetics", "magnetics_tmi_filtered"), 
+        ("gravity", "gravity_bouguer_filtered")
+    ]
+    
+    for var, suffix in mappings:
+        out_tif = target_dir / f"{suffix}.tif"
+        data = ds[var].values.astype(np.float32)
+        # Flip vertically if needed as rasterio uses origin-top
+        # For simplicity, we assume standard orientation
         
         with rasterio.open(
-            path, 'w', driver='GTiff',
-            height=ny, width=nx,
+            out_tif, 'w', driver='GTiff',
+            height=data.shape[0], width=data.shape[1],
             count=1, dtype='float32',
             crs='EPSG:4326', transform=transform,
-            nodata=RASTER_NODATA
         ) as dst:
-            dst.write(data.astype(np.float32), 1)
-        created_files.append(str(path))
-        
-    return f"🛠️ Demo Mode: Generated {len(created_files)} synthetic geophysical grids in {out_dir}"
+            dst.write(data, 1)
+
+    return f"🛠️ Swarm Fallback: Generated high-fidelity synthetic grids in {target_dir}"
+

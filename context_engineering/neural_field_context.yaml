@@ -1,0 +1,41 @@
+# Neural Field Context Schema for JR MineralForge v2.1
+# Based on Context-Engineering protocols for Team JR
+
+context_metadata:
+  version: "2.1"
+  project: "JR MineralForge"
+  team: "Team JR"
+  domain: "Geoscience AI"
+
+field_definitions:
+  geometry:
+    required: true
+    schema:
+      type: "BoundingBox"
+      params: ["min_lat", "max_lat", "min_lon", "max_lon", "buffer_percent"]
+  
+  data_layers:
+    required: true
+    resonance_threshold: 0.85
+    layers:
+      - name: "magnetics"
+        type: "vector/raster"
+        priority: 1
+      - name: "gravity"
+        type: "vector/raster"
+        priority: 1
+      - name: "radiometrics"
+        type: "vector/raster"
+        priority: 2
+      - name: "deposits"
+        type: "point/vector"
+        priority: 3
+
+control_loop:
+  max_recursion: 3
+  decay_rate: 0.05
+  resonance_check: "field_resonance_measure.py"
+
+token_optimization:
+  compression_ratio: 0.7
+  anti_noise_enabled: true

@@ -64,14 +64,13 @@ class RigidMultiAgentSupervisor:
             return {"province_id": "mount_woods", "commodity": "Cu-Au", "weights": {}}
 
     def fetch_data_layers(self, params: dict):
-        """Agent 2: Dynamic Data Ingestion from SARIG/GA."""
-        log.info("Agent 2 [Ingestion Worker] connecting to WFS nodes...")
-        from agents.data_ingestion_agent import SARIGIngestionAgent
-        from config.settings import AUSTRALIAN_PROVINCES
+        """Agent 2: v2.1 Swarm-Driven Data Ingestion."""
+        log.info("Agent 2 [Swarm Orchestrator] initiating context-engineered retrieval...")
+        from agents.data_ingestion_agent import run_mineralforge_swarm
         
-        bbox = AUSTRALIAN_PROVINCES.get(params.get("province_id", "mount_woods"), AUSTRALIAN_PROVINCES["mount_woods"])
-        agent = SARIGIngestionAgent(bbox=bbox)
-        return agent.ingest_all()
+        # Trigger default region swarm if no specific file is provided
+        result_json = run_mineralforge_swarm.invoke({"file_path": ""}) 
+        return json.loads(result_json)
 
     def run_ml_pipeline(self, params: dict):
         """Agent 3 & 4: Isolation Forest & Explainer Target Ranking."""
