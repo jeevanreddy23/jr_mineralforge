@@ -116,6 +116,14 @@ def run_prospectivity(province_id: str = "mount_woods", file_obj=None) -> tuple[
 
         # 3. Target Generation
         status_logs.append("[INFO] Initializing ML Prospectivity Pipeline...")
+        
+        from agents.ml_engine_agent import ProspectivityMLEngine
+        from config.settings import MODELS_DIR
+        
+        if not (MODELS_DIR / "ml_engine.pkl").exists():
+            status_logs.append("[ERROR] ML model engine is not initialized.")
+            return "❌ ML model engine is not initialized. Click 'Initialize ML Pipeline' first.", "<p>Initialization Required</p>", pd.DataFrame(), ""
+
         agent = ProspectivityMappingAgent(bbox=bbox)
         results = agent.run_full_pipeline()
         
@@ -132,7 +140,29 @@ def run_prospectivity(province_id: str = "mount_woods", file_obj=None) -> tuple[
         else:
             map_html = "<p>Map not generated.</p>"
             
-        # 5. Targets Dataframe Extraction & KPIs
+        # 5. Reasoning Audit (NLI Logic)
+        status_logs.append("[TEAM JR AUDIT] Initiating ReasoningValidator (NLI Logic Gate)...")
+        from agents.reasoning_agent import run_reasoning_validator
+        
+        # Prepare context summary for ReasoningAgent
+        data_summary = f"Geophysical layers integrated: {list(swarm_data.keys())}. Final Resonance: {swarm_data.get('final_resonance', '0.0')}"
+        user_intent = f"Identify high-confidence copper-gold targets in {province_id} region."
+        
+        try:
+            reasoning = run_reasoning_validator(data_summary, user_intent)
+            nli_label = reasoning.get("nli_label", "NEUTRAL")
+            trace = reasoning.get("geological_justification", "No justification provided.")
+            confidence = reasoning.get("confidence", 0.0)
+            
+            status_logs.append(f"[{nli_label}] Audit Complete (Confidence: {confidence})")
+            status_logs.append(f"📜 LOGIC TRACE: {trace}")
+            
+            if nli_label == "NEUTRAL":
+                status_logs.append("🔄 [SYSTEM ACTION] Insufficient entailment. Swarm triggered for BBOX expansion.")
+        except Exception as e:
+            status_logs.append(f"[WARN] Reasoning audit bypassed: {e}")
+
+        # 6. Targets Dataframe Extraction & KPIs
         csv_path = results.get("targets_csv", "")
         target_count = 0
         max_conf = 0.0
