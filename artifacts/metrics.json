@@ -1,0 +1,95 @@
+{
+  "dataset_path": "data\\ground_vibration_dataset.csv",
+  "rows": 1000,
+  "features_used": [
+    "Charge_Weight(kg)",
+    "Burden(m)",
+    "Spacing(m)",
+    "Delay(ms)",
+    "Soil_Type",
+    "Temperature(\u00b0C)",
+    "Wind_Speed(m/s)",
+    "Seismometer(m/s\u00b2)",
+    "Geophone(mm/s)",
+    "Acc_X(m/s\u00b2)",
+    "Acc_Y(m/s\u00b2)",
+    "Acc_Z(m/s\u00b2)",
+    "PSD_Value",
+    "PPV(mm/s)",
+    "Frequency(Hz)",
+    "hour",
+    "dayofweek",
+    "month"
+  ],
+  "target_column": "Vibration_Level",
+  "class_counts": {
+    "Medium": 440,
+    "Low": 342,
+    "High": 218
+  },
+  "best_params": {
+    "model": "RandomForestClassifier(class_weight='balanced', random_state=42)",
+    "model__max_depth": "None",
+    "model__min_samples_leaf": "1",
+    "model__n_estimators": "150"
+  },
+  "cv_best_f1_macro": 1.0,
+  "test_accuracy": 1.0,
+  "classification_report": {
+    "High": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 44.0
+    },
+    "Low": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 68.0
+    },
+    "Medium": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 88.0
+    },
+    "accuracy": 1.0,
+    "macro avg": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 200.0
+    },
+    "weighted avg": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 200.0
+    }
+  },
+  "confusion_matrix": {
+    "labels": [
+      "High",
+      "Low",
+      "Medium"
+    ],
+    "matrix": [
+      [
+        44,
+        0,
+        0
+      ],
+      [
+        0,
+        68,
+        0
+      ],
+      [
+        0,
+        0,
+        88
+      ]
+    ]
+  }
+}
