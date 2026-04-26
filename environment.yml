@@ -16,6 +16,7 @@ dependencies:
   - pip:
       - imbalanced-learn
       - mlflow
+      - optuna
       - streamlit
       - fastapi
       - uvicorn

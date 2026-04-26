@@ -51,6 +51,20 @@ python train_pipeline.py
 python train_pipeline.py --data data\ground_vibration_dataset.csv --output-dir artifacts
 ```
 
+3.3. Run the default exhaustive GridSearchCV tuner:
+
+```powershell
+python train_pipeline.py --tuner grid
+```
+
+3.4. Run the Optuna tuner for smarter Random Forest optimization:
+
+```powershell
+python train_pipeline.py --tuner optuna --optuna-trials 40
+```
+
+3.5. The training output records `tuning_method`, `tuning_trials`, `best_model_type`, `best_params`, `cv_best_f1_macro`, `test_accuracy`, and `high_class_recall` in `artifacts/metrics.json`.
+
 ## 4. Generate Predictions
 
 4.1. Score the included dataset and write predictions to the artifacts folder:
@@ -113,11 +127,13 @@ python visualize_dataset.py
 
 8.8. The pipeline compares Random Forest, Logistic Regression, and SVM models using 5-fold stratified cross-validation.
 
-8.9. The pipeline saves the best model to `artifacts/vibration_detection_pipeline.joblib`.
+8.9. The pipeline can also use Optuna to search Random Forest hyperparameters with a safety-aware objective that rewards both macro F1 and recall for the `High` class.
 
-8.10. The pipeline saves accuracy, macro F1, classification report, and confusion matrix to `artifacts/metrics.json`.
+8.10. The pipeline saves the best model to `artifacts/vibration_detection_pipeline.joblib`.
 
-8.11. The pipeline saves feature importance to `artifacts/feature_importance.csv` when available.
+8.11. The pipeline saves accuracy, macro F1, high-class recall, classification report, tuning details, and confusion matrix to `artifacts/metrics.json`.
+
+8.12. The pipeline saves feature importance to `artifacts/feature_importance.csv` when available.
 
 ## 9. Technical Background
 
@@ -138,6 +154,8 @@ python visualize_dataset.py
 9.8. Scaled distance is a standard blast-vibration normalization method because it captures how charge mass and distance jointly control vibration intensity.
 
 9.9. FFT utilities are included in `mineralforge/fft.py` for waveform workflows where dominant frequency and band energy matter as much as amplitude.
+
+9.10. Hyperparameter optimization reduces dangerous false negatives by searching for model settings that improve the `High` vibration class, not only overall accuracy.
 
 ## 10. Engineering Interfaces
 

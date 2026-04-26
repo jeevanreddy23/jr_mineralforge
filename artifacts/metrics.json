@@ -32,14 +32,19 @@
     "Low": 342,
     "High": 218
   },
+  "tuning_method": "GridSearchCV",
+  "tuning_trials": 33,
+  "best_model_type": "RandomForestClassifier",
   "best_params": {
     "model": "RandomForestClassifier(class_weight='balanced', random_state=42)",
+    "model__criterion": "gini",
     "model__max_depth": "None",
     "model__min_samples_leaf": "1",
     "model__n_estimators": "150"
   },
   "cv_best_f1_macro": 1.0,
   "test_accuracy": 1.0,
+  "high_class_recall": 1.0,
   "classification_report": {
     "High": {
       "precision": 1.0,
