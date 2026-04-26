@@ -19,7 +19,12 @@
     "Frequency(Hz)",
     "hour",
     "dayofweek",
-    "month"
+    "month",
+    "Effective_Distance(m)",
+    "Scaled_Distance_Sqrt",
+    "Scaled_Distance_Cuberoot",
+    "Estimated_PPV(mm/s)",
+    "PPV_Frequency_Product"
   ],
   "target_column": "Vibration_Level",
   "class_counts": {

@@ -1,0 +1,14 @@
+services:
+  mineralforge:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mineralforge_edge_demo
+    ports:
+      - "8000:8000"
+      - "8501:8501"
+    volumes:
+      - ./reports:/app/reports
+    environment:
+      - PYTHONPATH=/app
+    command: streamlit run dashboard.py --server.address 0.0.0.0

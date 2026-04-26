@@ -38,6 +38,25 @@ python train_pipeline.py --data data\ground_vibration_dataset.csv --output-dir a
 python predict.py --input data\ground_vibration_dataset.csv --output artifacts\predictions.csv
 ```
 
+## Dashboard
+
+```powershell
+streamlit run dashboard.py
+```
+
+The dashboard loads the trained pipeline, scores uploaded CSV files, shows PPV
+timelines, plots PPV against frequency, and displays feature importance from
+`artifacts/feature_importance.csv`.
+
+## API
+
+```powershell
+uvicorn api:app --reload
+```
+
+The API exposes a lightweight `/predict` endpoint for edge devices that already
+compute feature windows from acoustic/vibration sensors.
+
 ## Visualize
 
 ```powershell
@@ -56,3 +75,28 @@ python visualize_dataset.py
 8. Saves the best model to `artifacts/vibration_detection_pipeline.joblib`.
 9. Saves accuracy, macro F1, classification report, and confusion matrix to `artifacts/metrics.json`.
 10. Saves feature importance to `artifacts/feature_importance.csv` when available.
+
+## Technical Background
+
+MineralForge now adds geotechnical blast-vibration features before training:
+
+- `Effective_Distance(m)` from burden and spacing.
+- square-root scaled distance: `distance / sqrt(charge weight)`.
+- cube-root scaled distance: `distance / charge weight^(1/3)`.
+- empirical estimated PPV using a site-calibrated scaled-distance relation.
+- resultant acceleration from triaxial sensor channels.
+- PPV-frequency product for structural response screening.
+
+Scaled distance is a standard blast-vibration normalization method because it
+captures how charge mass and distance jointly control vibration intensity. FFT
+utilities are included in `mineralforge/fft.py` for waveform workflows where
+dominant frequency and band energy matter as much as amplitude.
+
+## Engineering Interfaces
+
+- `mineralforge/geotech.py`: scaled distance and PPV calculations.
+- `mineralforge/fft.py`: dominant frequency and band-energy analysis.
+- `dashboard.py`: Streamlit field-review dashboard.
+- `api.py`: FastAPI edge-inference endpoint.
+- `data/sample_input.csv`: tiny CSV for quick prediction experiments.
+- `tests/`: domain and preprocessing tests.

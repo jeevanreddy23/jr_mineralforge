@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 
 import joblib
+import numpy as np
 import pandas as pd
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import RandomForestClassifier
@@ -16,6 +17,13 @@ from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from sklearn.svm import SVC
 
+from mineralforge.geotech import estimate_ppv_mm_s, scaled_distance_cube_root, scaled_distance_square_root
+
+try:
+    import mlflow
+except Exception:  # pragma: no cover - optional experiment tracking dependency
+    mlflow = None
+
 
 TARGET_COLUMN = "Vibration_Level"
 DEFAULT_DATA_PATH = Path("data/ground_vibration_dataset.csv")
@@ -26,7 +34,7 @@ def load_data(csv_path: Path) -> pd.DataFrame:
     df = pd.read_csv(csv_path)
     if TARGET_COLUMN not in df.columns:
         raise ValueError(f"Expected target column {TARGET_COLUMN!r}, found: {list(df.columns)}")
-    return add_time_features(df)
+    return add_engineering_features(add_time_features(df))
 
 
 def add_time_features(df: pd.DataFrame) -> pd.DataFrame:
@@ -37,6 +45,39 @@ def add_time_features(df: pd.DataFrame) -> pd.DataFrame:
         df["dayofweek"] = timestamp.dt.dayofweek
         df["month"] = timestamp.dt.month
         df = df.drop(columns=["Timestamp"])
+    return df
+
+
+def add_engineering_features(df: pd.DataFrame) -> pd.DataFrame:
+    """Add blast-vibration features used by geotechnical engineers."""
+
+    df = df.copy()
+    charge_column = "Charge_Weight(kg)"
+    if {charge_column, "Burden(m)", "Spacing(m)"}.issubset(df.columns):
+        effective_distance = np.sqrt(df["Burden(m)"] ** 2 + df["Spacing(m)"] ** 2).clip(lower=0.1)
+        charge = df[charge_column].clip(lower=0.1)
+        df["Effective_Distance(m)"] = effective_distance
+        df["Scaled_Distance_Sqrt"] = [
+            scaled_distance_square_root(float(weight), float(distance))
+            for weight, distance in zip(charge, effective_distance)
+        ]
+        df["Scaled_Distance_Cuberoot"] = [
+            scaled_distance_cube_root(float(weight), float(distance))
+            for weight, distance in zip(charge, effective_distance)
+        ]
+        soil_values = df["Soil_Type"] if "Soil_Type" in df.columns else pd.Series(["rock"] * len(df), index=df.index)
+        df["Estimated_PPV(mm/s)"] = [
+            estimate_ppv_mm_s(float(weight), float(distance), soil_type=str(soil))
+            for weight, distance, soil in zip(charge, effective_distance, soil_values)
+        ]
+
+    acceleration_columns = ["Acc_X(m/sÂ²)", "Acc_Y(m/sÂ²)", "Acc_Z(m/sÂ²)"]
+    if set(acceleration_columns).issubset(df.columns):
+        df["Acceleration_Resultant(m/sÂ²)"] = np.sqrt(sum(df[column] ** 2 for column in acceleration_columns))
+
+    if {"PPV(mm/s)", "Frequency(Hz)"}.issubset(df.columns):
+        df["PPV_Frequency_Product"] = df["PPV(mm/s)"] * df["Frequency(Hz)"]
+
     return df
 
 
@@ -151,6 +192,7 @@ def train(csv_path: Path, output_dir: Path) -> dict:
     joblib.dump(best_pipeline, output_dir / "vibration_detection_pipeline.joblib")
     (output_dir / "metrics.json").write_text(json.dumps(metrics, indent=2), encoding="utf-8")
     save_feature_importance(best_pipeline, output_dir)
+    track_with_mlflow(metrics, output_dir)
 
     return metrics
 
@@ -168,6 +210,21 @@ def save_feature_importance(pipeline: Pipeline, output_dir: Path) -> None:
         }
     ).sort_values("importance", ascending=False)
     importance.to_csv(output_dir / "feature_importance.csv", index=False)
+
+
+def track_with_mlflow(metrics: dict, output_dir: Path) -> None:
+    if mlflow is None:
+        return
+    mlflow.set_tracking_uri(f"file:{(output_dir / 'mlruns').resolve()}")
+    mlflow.set_experiment("mineralforge-vibration-risk")
+    with mlflow.start_run():
+        mlflow.log_metric("cv_best_f1_macro", metrics["cv_best_f1_macro"])
+        mlflow.log_metric("test_accuracy", metrics["test_accuracy"])
+        mlflow.log_params(metrics["best_params"])
+        for artifact_name in ["metrics.json", "feature_importance.csv"]:
+            artifact_path = output_dir / artifact_name
+            if artifact_path.exists():
+                mlflow.log_artifact(str(artifact_path))
 
 
 def parse_args() -> argparse.Namespace:

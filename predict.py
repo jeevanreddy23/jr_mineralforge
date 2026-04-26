@@ -6,7 +6,7 @@ from pathlib import Path
 import joblib
 import pandas as pd
 
-from train_pipeline import TARGET_COLUMN, add_time_features
+from train_pipeline import TARGET_COLUMN, add_engineering_features, add_time_features
 
 
 DEFAULT_MODEL_PATH = Path("artifacts/vibration_detection_pipeline.joblib")
@@ -14,7 +14,7 @@ DEFAULT_MODEL_PATH = Path("artifacts/vibration_detection_pipeline.joblib")
 
 def prepare_prediction_data(csv_path: Path) -> pd.DataFrame:
     df = pd.read_csv(csv_path)
-    df = add_time_features(df)
+    df = add_engineering_features(add_time_features(df))
     columns_to_drop = [column for column in [TARGET_COLUMN, "Blast_ID"] if column in df.columns]
     return df.drop(columns=columns_to_drop)
 

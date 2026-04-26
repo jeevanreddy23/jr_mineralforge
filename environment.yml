@@ -1,0 +1,21 @@
+name: jr_mineralforge
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.11
+  - numpy
+  - pandas
+  - scipy
+  - scikit-learn
+  - xgboost
+  - shap
+  - matplotlib
+  - pytest
+  - pip
+  - pip:
+      - imbalanced-learn
+      - mlflow
+      - streamlit
+      - fastapi
+      - uvicorn
