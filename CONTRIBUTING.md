@@ -1,39 +1,27 @@
-## ⚡ The 2-Minute Investment (Quick Contribution)
+# Contributing
 
-You don't need to be a Python expert to help MineralForge grow. You can contribute **Geological Anchors** to help the swarm understand new commodities.
+MineralForge is now focused on edge-deployed geotechnical risk detection. Good
+contributions should improve one of four things:
 
-1.  **Fork** the repository.
-2.  **Add your Anchor**: Create a new `.md` file in `prompts/anchors/` (e.g., `nickel_sulfide.md`).
-3.  **Define the Logic**:
-    ```markdown
-    ### [ANCHOR: NICKEL SULFIDE]
-    Prioritize electromagnetic (EM) anomalies with high conductivity. 
-    ### [CONSTRAINT]
-    Discard targets if coincident with carbonaceous shales.
-    ```
-4.  **Submit PR**: We will merge it into the core swarm skills.
+1. Feature extraction from acoustic or vibration sensors.
+2. Robust model training for rare high-risk events.
+3. Clear SHAP-style explanations for field users.
+4. TARP mappings that turn model output into operational actions.
 
----
+## Development
 
-## 🎯 Advanced Contributions
+```bash
+python -m pip install -r requirements.txt
+python main.py --train-report
+python -m pytest tests
+```
 
-### 1. Swarm Agent Skills
-Help us build new specialized agents for:
-- **Lithology Hatching** (Automated SVG generation)
-- **Spectral Signature Matching** (Satellite data integration)
+The demo must stay runnable without physical sensors. Hardware integrations
+should use interfaces that can be backed by synthetic signals in tests.
 
-### 2. NLI Logic Traces
-Contribute domain-specific (Premise, Hypothesis) pairs to our NLI-Guard testing suite.
+## Pull request checklist
 
----
-
-## 🚀 Getting Started
-1. Fork the repository.
-2. Create a new branch: `git checkout -b feature/your-feature-name`.
-3. Submit a Pull Request.
-
-## 🤝 Community & Recognition
-Every contributor gets featured in our **Mining AI Hall of Fame**. Join us in making MineralForge the "World Number 1" mining AI repository.
-
----
-*MineralForge: Built by Geologists, Engineered by AI.*
+- Keep raw sensor streams out of committed data.
+- Add or update tests for feature extraction, model behavior, or TARP mapping.
+- Explain how the change affects underground deployment or decision quality.
+- Prefer interpretable models and measurable reliability over novelty.

@@ -1,0 +1,3 @@
+timestamp,zone,soil_type,charge_mass_kg,distance_m,structure_distance_m,acoustic_rms,acoustic_peak_frequency_hz,spectral_entropy,acoustic_event_rate,vibration_ppv,vibration_dominant_frequency_hz,vibration_energy,cumulative_energy,risk_event
+2026-04-26T08:15:00,Stope 3,fractured_rock,120,55,70,0.18,210,0.62,18,4.8,42,340,7200,1
+2026-04-26T09:00:00,Drive 2,rock,80,140,150,0.06,160,0.31,3,1.2,31,82,980,0

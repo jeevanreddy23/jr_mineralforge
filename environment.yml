@@ -4,42 +4,18 @@ channels:
   - defaults
 dependencies:
   - python=3.11
-  - gdal
-  - geopandas
-  - rasterio
-  - pyproj
-  - owslib
-  - xarray
+  - numpy
+  - pandas
   - scipy
   - scikit-learn
+  - xgboost
   - shap
-  - fiona
-  - shapely
-  - pandas
-  - numpy
   - matplotlib
-  - seaborn
-  - plotly
-  - requests
-  - pyyaml
-  - pydantic
+  - pytest
   - pip
   - pip:
-      - langchain
-      - langchain-community
-      - langchain-openai
-      - langchain-anthropic
-      - langchain-ollama
-      - google-generativeai
-      - chromadb
-      - sentence-transformers
-      - gradio
-      - gstools
-      - python-dotenv
-      - bs4
-      - lxml
-      - typing-extensions
-      - pillow
-      - pypdf
-      - python-magic-bin; platform_system == 'Windows'
-      - python-magic; platform_system != 'Windows'
+      - imbalanced-learn
+      - mlflow
+      - streamlit
+      - fastapi
+      - uvicorn

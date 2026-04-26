@@ -1,87 +1,167 @@
-# ⚒️ MineralForge: The Industrial AI Harness for Mining
+# MineralForge
 
-### Stop Guessing. Start Engineering.
-Eliminate drilling hallucinations using **Anchor Prompting** and **NLI-Validated Swarms**.
+Edge-deployed, interpretable rock-burst risk detection for underground mines.
 
-[![Forks](https://img.shields.io/github/forks/jeevanreddy23/jr_mineralforge?style=for-the-badge)](https://github.com/jeevanreddy23/jr_mineralforge/network/members)
-[![Stars](https://img.shields.io/github/stars/jeevanreddy23/jr_mineralforge?style=for-the-badge)](https://github.com/jeevanreddy23/jr_mineralforge/stargazers)
-[![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
+MineralForge is a field-ready prototype for the pipeline mining companies
+actually care about:
 
----
+```text
+INMP441 + ADXL345 -> edge features -> XGBoost/RF model -> SHAP drivers -> TARP action
+```
 
-## 🪝 The Hook: Why MineralForge?
+The point is not to stream raw sensor noise into a black box. The point is to
+extract the right geotechnical features on a Raspberry Pi class device, score
+risk locally, explain the cause, and map that prediction to an operational
+Trigger Action Response Plan.
 
-### 1. The Trigger (The Problem)
-Traditional AI in mining gives you "Black Box" probability scores. When a $500k drill hole comes back empty, you don't know *why*.
+## Why this matters
 
-### 2. The Action (One-Click Truth)
-Run our **Hallucination Demo** to see MineralForge catch a logic error that would have cost a mining company thousands.
+Most mining AI demos stop at "we trained a model." MineralForge is structured as
+a decision system:
+
+| Layer | What it does |
+| --- | --- |
+| Edge acquisition | Reads acoustic emission and vibration windows from low-cost sensors |
+| Feature extraction | Computes RMS, peak frequency, spectral entropy, event rate, PPV, dominant frequency, energy, and cumulative energy |
+| ML risk engine | Uses XGBoost when available, with Random Forest fallback |
+| Imbalance roadmap | Supports the project path from SMOTE to SVMSMOTE to GAN-style synthetic seismic event generation |
+| Explainability | Produces SHAP-style top drivers for every assessment |
+| TARP integration | Converts risk into a clear field action |
+
+The core predictor is cumulative energy:
+
+```text
+E_cum = sum(E_i)
+```
+
+It is treated as a first-class feature because rapid energy accumulation is a
+known precursor pattern in rock-burst and seismic hazard monitoring.
+
+## Quickstart
+
 ```bash
-python main.py --demo
+python -m pip install -r requirements.txt
+python main.py --zone "Stope 3" --stress 2.8
 ```
 
-### 3. The Variable Reward (The "Eureka" Moment)
-MineralForge doesn't just give you a target; it gives you a **Logic Trace**. Our **NLI-Guard** cross-references geophysical layers against geological theory to prove *Entailment*. You get a target backed by logic, not just statistics.
+JSON output for integration:
 
-### 4. The Investment (Your Legacy)
-Add your own **"Miner's Intuition"** as a Prompt Anchor. Every anchor you add makes the swarm smarter for your specific commodity.
-
----
-
-## 🐝 Swarm-Driven Context Engineering
-
-MineralForge uses a **Swarm of Specialized Agents** that you can control with **Natural Language**.
-
-| Agent | Mission | Reasoning Engine |
-| :--- | :--- | :--- |
-| **Geometry Scout** | Defines the BBOX from your KML/SHP | `GeometryAnalyzerAgent` |
-| **Data Hunter** | Scours SARIG & GA OGC endpoints | `ParallelSearcherSwarm` |
-| **Resonance Guard** | Measures data density & quality | `CoverageValidator` |
-| **Reasoning Audit** | Performs NLI checks on every claim | `ReasoningValidator` |
-
----
-
-## 🛠️ Build Your Own Mineral Agent
-
-You can extend the swarm by adding a new "Skill" in `.agents/skills`.
-
-**Example: The "Copper-Gold Porphyry" Skill**
-```markdown
-### [ANCHOR: GEOLOGIC SIGNATURE]
-Identify targets where high magnetic susceptibility overlaps with gravity anomalies.
-### [CONSTRAINTS]
-Reject any target with < 0.85 Field Resonance.
+```bash
+python main.py --zone "Stope 3" --stress 2.8 --json
 ```
 
----
+Model validation report on synthetic proxy data:
 
-## 🚀 5-Minute Quickstart
+```bash
+python main.py --train-report
+```
 
-1.  **Clone & Setup**:
-    ```bash
-    git clone https://github.com/jeevanreddy23/jr_mineralforge.git
-    cd jr_mineralforge
-    setup_conda.bat
-    ```
-2.  **Run the Executive Dashboard**:
-    ```bash
-    python app.py
-    ```
-3.  **Witness the Audit**: Run a query and watch the **ReasoningValidator** catch inconsistencies in real-time.
+Batch prediction from the included sample CSV:
 
----
+```bash
+python predict.py data/sample_input.csv
+```
 
-## 📚 The Research Lab
-Explore the science behind the harness:
-*   [Anchor Prompting: Solving Context Drift](file:///c:/Users/pored/.gemini/Geoscience/jr_mineralforge/research/anchor_prompting.md)
-*   [NLI Verification: The Future of AI Reliability](file:///c:/Users/pored/.gemini/Geoscience/jr_mineralforge/research/nli_verification.md)
+Run the lightweight report app:
 
----
+```bash
+python app.py
+```
 
-## 🤝 Join the Global Mining Swarm
-We are building the world's largest library of **Geological Anchors**.
-- **Star** this repo to stay updated on the v2.2 Swarm release.
-- **Fork** it to add your commodity-specific anchors.
-- **Contribute** to [CONTRIBUTING.md](file:///c:/Users/pored/.gemini/Geoscience/jr_mineralforge/CONTRIBUTING.md).
+Run the Streamlit dashboard:
 
-*MineralForge: Engineering the future of mineral discovery.*
+```bash
+streamlit run dashboard.py
+```
+
+Run the FastAPI inference service:
+
+```bash
+uvicorn api:app --reload
+```
+
+## Example output
+
+```text
+MineralForge Edge Assessment
+================================
+Zone: Stope 3
+Risk: HIGH (82.4%)
+
+Top drivers:
+- cumulative_energy: 7981.219
+- acoustic_event_rate: 35.500
+- vibration_ppv: 2.724
+
+TARP action:
+Evacuate Stope 3 immediately and suspend work until geotechnical clearance.
+Notify geotechnical engineer, shift supervisor, and control room.
+Restrict all non-essential access and establish exclusion barricades.
+```
+
+## Repository layout
+
+```text
+mineralforge/
+  features.py        Edge feature extraction
+  models.py          XGBoost/RF training and SHAP-style explanation
+  pipeline.py        Risk assessment orchestration
+  tarp.py            Trigger Action Response Plan mapping
+  synthetic.py       Synthetic microseismic proxy data
+  edge_simulator.py  Raspberry Pi style demo loop
+tests/
+  test_features.py
+  test_pipeline.py
+```
+
+## Hardware target
+
+Recommended prototype hardware:
+
+- Raspberry Pi 5
+- INMP441 I2S MEMS microphone for acoustic emission proxies
+- ADXL345 accelerometer for vibration/seismic proxies
+
+The edge device should compute features locally and transmit only compact event
+records. Raw streams can be logged during calibration, but they should not be
+the production data path.
+
+## Technical Background
+
+Blast vibration risk depends on both source energy and propagation path. Two
+industry-standard scaled-distance terms are included:
+
+```text
+SD_sqrt = distance / sqrt(charge mass)
+SD_cuberoot = distance / charge mass^(1/3)
+```
+
+These features help normalize blasts of different sizes and distances. PPV is
+estimated with a site-calibrated relation of the form `PPV = k * SD^b`, then
+adjusted with a soil attenuation factor. Competent rock, fractured rock, sand,
+clay, and fill can attenuate or amplify vibration differently, so `soil_type`
+is encoded during preprocessing.
+
+Frequency content matters because structures respond differently to low and high
+frequency vibration. MineralForge includes FFT utilities for dominant frequency
+and frequency-band energy so a field engineer can distinguish a high-amplitude
+short-duration event from a lower-amplitude event that lands in a sensitive
+structural frequency band.
+
+## Professional Interfaces
+
+- `dashboard.py` gives managers and field engineers a Streamlit review surface
+  for CSV upload, risk summaries, timelines, and driver counts.
+- `api.py` exposes `/predict` for Raspberry Pi or geophone gateways to post
+  feature records for live inference.
+- `mineralforge/training.py` includes class-weighted Random Forest tuning,
+  optional SMOTE, and optional MLflow tracking.
+- `data/sample_input.csv` lets users test the project immediately.
+
+## Roadmap
+
+1. Edge sensor drivers for INMP441 and ADXL345
+2. SVMSMOTE training mode for tighter rare-event boundary learning
+3. SHAP dashboard with driver trends over the last 30, 60, and 90 minutes
+4. Multi-node spatial risk map across stopes and drives
+5. GAN-based synthetic event generation for rare high-risk scenarios

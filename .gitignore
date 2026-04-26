@@ -39,6 +39,7 @@ logs/
 
 # ── Reports (generated outputs) ─────────────────────────────────
 reports/
+mineralforge_report.html
 
 # ── IDEs ─────────────────────────────────────────────────────────
 .vscode/
