@@ -1,0 +1,27 @@
+feature,mean_abs_shap,note
+numeric__PPV(mm/s),0.6179288301351076,Fallback to model feature_importances_ because SHAP was unavailable for this run.
+numeric__PPV_Frequency_Product,0.13423105665533863,Fallback to model feature_importances_ because SHAP was unavailable for this run.
+numeric__Frequency(Hz),0.039723383017032786,Fallback to model feature_importances_ because SHAP was unavailable for this run.
+numeric__Wind_Speed(m/s),0.015244369589442763,Fallback to model feature_importances_ because SHAP was unavailable for this run.
+numeric__Burden(m),0.014216750542645653,Fallback to model feature_importances_ because SHAP was unavailable for this run.
+numeric__Seismometer(m/s²),0.013339262696254657,Fallback to model feature_importances_ because SHAP was unavailable for this run.
+numeric__Delay(ms),0.012017014404791528,Fallback to model feature_importances_ because SHAP was unavailable for this run.
+numeric__Temperature(°C),0.011840021591089926,Fallback to model feature_importances_ because SHAP was unavailable for this run.
+numeric__Acc_X(m/s²),0.011838856683744204,Fallback to model feature_importances_ because SHAP was unavailable for this run.
+numeric__Acc_Y(m/s²),0.011731348113927797,Fallback to model feature_importances_ because SHAP was unavailable for this run.
+numeric__Charge_Weight(kg),0.011721183059672178,Fallback to model feature_importances_ because SHAP was unavailable for this run.
+numeric__Acceleration_Resultant(m/s²),0.01134131458597473,Fallback to model feature_importances_ because SHAP was unavailable for this run.
+numeric__Acc_Z(m/s²),0.01131436156432928,Fallback to model feature_importances_ because SHAP was unavailable for this run.
+numeric__Geophone(mm/s),0.010792546635365911,Fallback to model feature_importances_ because SHAP was unavailable for this run.
+numeric__PSD_Value,0.010531627316847023,Fallback to model feature_importances_ because SHAP was unavailable for this run.
+numeric__Effective_Distance(m),0.010408422044081107,Fallback to model feature_importances_ because SHAP was unavailable for this run.
+numeric__Spacing(m),0.010402498939703343,Fallback to model feature_importances_ because SHAP was unavailable for this run.
+numeric__Estimated_PPV(mm/s),0.009490350582707537,Fallback to model feature_importances_ because SHAP was unavailable for this run.
+numeric__hour,0.009329946296360655,Fallback to model feature_importances_ because SHAP was unavailable for this run.
+numeric__Scaled_Distance_Cuberoot,0.00913861059476424,Fallback to model feature_importances_ because SHAP was unavailable for this run.
+numeric__Scaled_Distance_Sqrt,0.008827159836251664,Fallback to model feature_importances_ because SHAP was unavailable for this run.
+categorical__Soil_Type_Medium,0.0018002850012215873,Fallback to model feature_importances_ because SHAP was unavailable for this run.
+categorical__Soil_Type_Soft,0.001396495004308621,Fallback to model feature_importances_ because SHAP was unavailable for this run.
+categorical__Soil_Type_Hard,0.0013943051090367449,Fallback to model feature_importances_ because SHAP was unavailable for this run.
+numeric__month,0.0,Fallback to model feature_importances_ because SHAP was unavailable for this run.
+numeric__dayofweek,0.0,Fallback to model feature_importances_ because SHAP was unavailable for this run.

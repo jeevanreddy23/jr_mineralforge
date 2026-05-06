@@ -1,6 +1,8 @@
 import pandas as pd
 
-from train_pipeline import add_engineering_features, run_grid_search
+from mineralforge.features.engineering import add_blast_engineering_features
+from mineralforge.models.training import run_grid_search
+from mineralforge.data.processing import build_preprocessor
 
 
 def test_grid_search_returns_tuning_summary():
@@ -14,9 +16,9 @@ def test_grid_search_returns_tuning_summary():
             "Frequency(Hz)": [30, 31, 45, 46, 25, 26, 50, 51, 35, 36, 55, 56],
         }
     )
-    x = add_engineering_features(frame)
+    x = add_blast_engineering_features(frame)
     y = pd.Series(["Low", "Low", "High", "High", "Medium", "Medium"] * 2)
-    _, summary = run_grid_search(x, y)
+    _, summary = run_grid_search(x, y, build_preprocessor(x))
     assert summary["method"] == "GridSearchCV"
     assert summary["trials"] > 0
     assert summary["best_score"] >= 0

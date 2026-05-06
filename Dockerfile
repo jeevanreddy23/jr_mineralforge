@@ -1,6 +1,6 @@
 FROM python:3.11-slim
 
-LABEL description="MineralForge edge-AI rock-burst risk prototype"
+LABEL description="MineralForge CrewAI blast vibration risk predictor"
 
 WORKDIR /app
 
@@ -10,7 +10,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
 
 COPY . .
 
-ENV PYTHONPATH=/app
+ENV PYTHONPATH=/app/src
 
 EXPOSE 8000
 EXPOSE 8501

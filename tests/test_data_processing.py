@@ -1,21 +1,29 @@
 import pandas as pd
 
-from mineralforge.data_processing import preprocess_events
+from mineralforge.data.processing import split_features_target
+from mineralforge.features.engineering import prepare_training_frame
+from mineralforge.utils.paths import TARGET_COLUMN
 
 
-def test_preprocess_events_handles_null_soil_type_and_adds_scaled_distance():
+def test_prepare_training_frame_adds_blast_features_and_time_features():
     frame = pd.DataFrame(
         [
             {
-                "timestamp": "2026-04-26T08:15:00",
-                "soil_type": None,
-                "charge_mass_kg": 100,
-                "distance_m": 50,
-                "risk_event": 1,
+                "Timestamp": "2026-04-26T08:15:00",
+                "Blast_ID": "B1",
+                "Charge_Weight(kg)": 100,
+                "Burden(m)": 3,
+                "Spacing(m)": 4,
+                "Soil_Type": "Hard",
+                "PPV(mm/s)": 2,
+                "Frequency(Hz)": 40,
+                TARGET_COLUMN: "Low",
             }
         ]
     )
-    processed = preprocess_events(frame)
-    assert processed.loc[0, "soil_type"] == "rock"
-    assert processed.loc[0, "scaled_distance_sqrt"] == 5.0
-    assert "soil_type_rock" in processed.columns
+    processed = prepare_training_frame(frame)
+    x, y = split_features_target(processed)
+    assert "hour" in processed.columns
+    assert "Scaled_Distance_Sqrt" in processed.columns
+    assert "Blast_ID" not in x.columns
+    assert y.iloc[0] == "Low"

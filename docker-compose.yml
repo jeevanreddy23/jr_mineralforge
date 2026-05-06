@@ -3,12 +3,12 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: mineralforge_edge_demo
+    container_name: mineralforge_blast_vibration
     ports:
       - "8000:8000"
       - "8501:8501"
     volumes:
-      - ./reports:/app/reports
+      - ./artifacts:/app/artifacts
     environment:
-      - PYTHONPATH=/app
+      - PYTHONPATH=/app/src
     command: streamlit run dashboard.py --server.address 0.0.0.0

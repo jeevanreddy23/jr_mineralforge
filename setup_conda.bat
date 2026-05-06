@@ -24,6 +24,6 @@ call conda activate jr_mineralforge
 
 echo.
 echo [SUCCESS] Environment is ready.
-echo [INFO] Try: python main.py --zone "Stope 3" --stress 2.8
+echo [INFO] Try: python train_pipeline.py --tuner grid
 echo ==========================================================
 pause

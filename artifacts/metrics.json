@@ -1,30 +1,14 @@
 {
   "dataset_path": "data\\ground_vibration_dataset.csv",
   "rows": 1000,
-  "features_used": [
+  "use_case": "Blast vibration risk predictor",
+  "input_features": [
     "Charge_Weight(kg)",
     "Burden(m)",
     "Spacing(m)",
-    "Delay(ms)",
-    "Soil_Type",
-    "Temperature(\u00b0C)",
-    "Wind_Speed(m/s)",
-    "Seismometer(m/s\u00b2)",
-    "Geophone(mm/s)",
-    "Acc_X(m/s\u00b2)",
-    "Acc_Y(m/s\u00b2)",
-    "Acc_Z(m/s\u00b2)",
-    "PSD_Value",
     "PPV(mm/s)",
     "Frequency(Hz)",
-    "hour",
-    "dayofweek",
-    "month",
-    "Effective_Distance(m)",
-    "Scaled_Distance_Sqrt",
-    "Scaled_Distance_Cuberoot",
-    "Estimated_PPV(mm/s)",
-    "PPV_Frequency_Product"
+    "Soil_Type"
   ],
   "target_column": "Vibration_Level",
   "class_counts": {
@@ -33,7 +17,7 @@
     "High": 218
   },
   "tuning_method": "GridSearchCV",
-  "tuning_trials": 33,
+  "tuning_trials": 41,
   "best_model_type": "RandomForestClassifier",
   "best_params": {
     "model": "RandomForestClassifier(class_weight='balanced', random_state=42)",
@@ -44,7 +28,7 @@
   },
   "cv_best_f1_macro": 1.0,
   "test_accuracy": 1.0,
-  "high_class_recall": 1.0,
+  "high_risk_recall": 1.0,
   "classification_report": {
     "High": {
       "precision": 1.0,

@@ -1,23 +1,20 @@
-import numpy as np
+import pandas as pd
 
-from mineralforge.features import build_feature_frame, cumulative_energy, extract_acoustic_features
-
-
-def test_cumulative_energy_sums_event_energy():
-    assert cumulative_energy([2.5, 3.0, 4.5]) == 10.0
+from mineralforge.features.engineering import add_blast_engineering_features
 
 
-def test_acoustic_peak_frequency_detects_signal():
-    sample_rate = 1000
-    t = np.linspace(0, 1, sample_rate, endpoint=False)
-    signal = np.sin(2 * np.pi * 120 * t)
-    features = extract_acoustic_features(signal, sample_rate_hz=sample_rate)
-    assert abs(features["acoustic_peak_frequency_hz"] - 120) <= 1
-
-
-def test_feature_frame_contains_core_predictor():
-    acoustic = np.ones(100)
-    vibration = np.ones(100) * 0.5
-    frame = build_feature_frame(acoustic, vibration, 100, 100, [1, 2, 3])
-    assert frame.cumulative_energy == 6.0
-    assert "cumulative_energy" in frame.as_dict()
+def test_blast_engineering_features_add_scaled_distance_and_ppv_product():
+    frame = pd.DataFrame(
+        {
+            "Charge_Weight(kg)": [100],
+            "Burden(m)": [3],
+            "Spacing(m)": [4],
+            "Soil_Type": ["Hard"],
+            "PPV(mm/s)": [2.5],
+            "Frequency(Hz)": [40],
+        }
+    )
+    result = add_blast_engineering_features(frame)
+    assert result.loc[0, "Effective_Distance(m)"] == 5.0
+    assert result.loc[0, "Scaled_Distance_Sqrt"] == 0.5
+    assert result.loc[0, "PPV_Frequency_Product"] == 100.0

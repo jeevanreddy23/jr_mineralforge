@@ -1,16 +1,7 @@
-from mineralforge.edge_simulator import run_demo_assessment
-from mineralforge.tarp import map_risk_to_tarp
+from mineralforge.geotech.recommendations import tarp_recommendation
 
 
-def test_demo_assessment_returns_decision_payload():
-    assessment = run_demo_assessment(zone="Stope 3", stress_multiplier=2.8)
-    assert assessment["zone"] == "Stope 3"
-    assert assessment["risk_level"] in {"LOW", "MEDIUM", "HIGH"}
-    assert len(assessment["drivers"]) == 3
-    assert "action" in assessment["tarp"]
-
-
-def test_high_risk_tarp_evacuation_action():
-    action = map_risk_to_tarp("HIGH", "Stope 3")
-    assert "Evacuate Stope 3" in action.action
-    assert action.risk_level == "HIGH"
+def test_high_risk_tarp_recommendation_mentions_stop_and_inspect():
+    recommendation = tarp_recommendation("High")
+    assert "Stop" in recommendation
+    assert "inspect" in recommendation.lower()

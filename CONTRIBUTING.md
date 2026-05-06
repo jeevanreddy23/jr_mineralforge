@@ -1,27 +1,27 @@
 # Contributing
 
-MineralForge is now focused on edge-deployed geotechnical risk detection. Good
-contributions should improve one of four things:
+MineralForge is focused on one use case: blast vibration risk prediction for mining/geotechnical review.
 
-1. Feature extraction from acoustic or vibration sensors.
-2. Robust model training for rare high-risk events.
-3. Clear SHAP-style explanations for field users.
-4. TARP mappings that turn model output into operational actions.
+Good contributions should improve:
+
+1. Blast vibration feature engineering.
+2. Model training, tuning, and high-risk recall.
+3. CrewAI data QA, model scoring, and geotechnical recommendation workflows.
+4. FastAPI or Streamlit usability for field review.
+5. Documentation that clearly separates demo data from validated mine deployment.
 
 ## Development
 
 ```bash
 python -m pip install -r requirements.txt
-python main.py --train-report
-python -m pytest tests
+python train_pipeline.py --tuner grid
+python predict.py --input data/ground_vibration_dataset.csv --output artifacts/predictions.csv
+python -m pytest
 ```
 
-The demo must stay runnable without physical sensors. Hardware integrations
-should use interfaces that can be backed by synthetic signals in tests.
+## Pull Request Checklist
 
-## Pull request checklist
-
-- Keep raw sensor streams out of committed data.
-- Add or update tests for feature extraction, model behavior, or TARP mapping.
-- Explain how the change affects underground deployment or decision quality.
-- Prefer interpretable models and measurable reliability over novelty.
+1. Keep the repository focused on blast vibration risk prediction.
+2. Do not add unrelated mineral exploration, RAG, or generic agent content.
+3. Add or update tests for feature engineering, model behavior, CrewAI workflow, API, or dashboard changes.
+4. Do not overclaim validation. Site-specific calibration is required before operational use.

@@ -1,6 +1,7 @@
-from mineralforge.fft import dominant_frequency, frequency_band_energy
-from mineralforge.geotech import estimate_ppv_mm_s, scaled_distance_cube_root, scaled_distance_square_root
 import numpy as np
+
+from mineralforge.features.fft import dominant_frequency, frequency_band_energy
+from mineralforge.geotech.calculations import estimate_ppv_mm_s, scaled_distance_cube_root, scaled_distance_square_root
 
 
 def test_scaled_distance_calculations():

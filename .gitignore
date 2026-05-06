@@ -3,3 +3,8 @@ __pycache__/
 .venv/
 venv/
 tmp_jr_mineralforge_check/
+.pytest_cache/
+streamlit.log
+streamlit.err.log
+artifacts/.dashboard_input.csv
+artifacts/.api_input.csv

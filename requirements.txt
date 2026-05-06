@@ -8,6 +8,7 @@ imbalanced-learn
 matplotlib
 mlflow
 optuna
+crewai
 streamlit
 fastapi
 uvicorn

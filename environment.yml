@@ -17,6 +17,7 @@ dependencies:
       - imbalanced-learn
       - mlflow
       - optuna
+      - crewai
       - streamlit
       - fastapi
       - uvicorn
