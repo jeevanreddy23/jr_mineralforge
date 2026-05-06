@@ -1,6 +1,6 @@
 FROM python:3.11-slim
 
-LABEL description="MineralForge CrewAI blast vibration risk predictor"
+LABEL description="MineralForge blast vibration risk predictor"
 
 WORKDIR /app
 

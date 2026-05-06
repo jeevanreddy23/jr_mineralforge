@@ -18,17 +18,16 @@
 
 2.3. The trained model predicts vibration risk.
 
-2.4. A CrewAI multi-agent workflow frames the review process:
+2.4. A deterministic review workflow frames the prediction process:
 
-1. Blast Data QA Agent validates the blast vibration input.
-2. Vibration Risk Model Agent scores the event with the trained model.
-3. Geotechnical TARP Agent converts the risk class into a field recommendation.
+1. Validate the blast vibration input.
+2. Score the event with the trained model.
+3. Convert the risk class into a field recommendation.
 
 ## 3. Repository Structure
 
 ```text
 src/mineralforge/
-  agents/        CrewAI multi-agent orchestration
   api/           FastAPI blast vibration inference app
   dashboard/     Streamlit field review dashboard
   data/          Dataset loading and preprocessing
@@ -72,13 +71,13 @@ python predict.py --input data\ground_vibration_dataset.csv --output artifacts\p
 
 5.2. The prediction output includes `Predicted_Vibration_Level`, estimated PPV where available, class probabilities, and `TARP_Recommendation`.
 
-## 6. Run The CrewAI Workflow
+## 6. Review The Prediction Workflow
 
-6.1. The CrewAI workflow is implemented in `src/mineralforge/agents/crew.py`.
+6.1. The prediction workflow is deterministic and auditable.
 
-6.2. It keeps model inference deterministic while giving the MVP a clear multi-agent review chain for data QA, model scoring, and geotechnical action review.
+6.2. It validates input fields, scores blast vibration risk, estimates PPV, reports probabilities, and produces a TARP-style recommendation.
 
-6.3. CrewAI is optional at runtime. If it is unavailable, the same deterministic workflow still scores the CSV and produces recommendations.
+6.3. This design keeps the model output reproducible and avoids any hidden LLM dependency.
 
 ## 7. Launch The Dashboard
 
